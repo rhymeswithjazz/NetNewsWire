@@ -17,6 +17,12 @@ final class GeneralPreferencesViewController: NSViewController {
 	@IBOutlet var articleTextSizePopup: NSPopUpButton!
 	@IBOutlet var articleThemePopup: NSPopUpButton!
 	@IBOutlet var defaultBrowserPopup: NSPopUpButton!
+	private let keyboardShortcutStylePopup = NSPopUpButton()
+
+	override func viewDidLoad() {
+		super.viewDidLoad()
+		addKeyboardShortcutStyleControls()
+	}
 
 	public override init(nibName nibNameOrNil: NSNib.Name?, bundle nibBundleOrNil: Bundle?) {
 		super.init(nibName: nibNameOrNil, bundle: nibBundleOrNil)
@@ -70,6 +76,11 @@ final class GeneralPreferencesViewController: NSViewController {
 		updateBrowserPopup()
 	}
 
+	@objc func keyboardShortcutStyleDidChange(_ sender: NSPopUpButton) {
+		guard let style = KeyboardShortcutStyle(rawValue: sender.selectedTag()) else { return }
+		AppDefaults.shared.keyboardShortcutStyle = style
+	}
+
 }
 
 // MARK: - Private
@@ -115,6 +126,37 @@ private extension GeneralPreferencesViewController {
 	func updateUI() {
 		updateArticleThemePopup()
 		updateBrowserPopup()
+		keyboardShortcutStylePopup.selectItem(withTag: AppDefaults.shared.keyboardShortcutStyle.rawValue)
+	}
+
+	func addKeyboardShortcutStyleControls() {
+		guard let container = articleTextSizeLabel.superview,
+			  let refreshPopup = container.subviews.compactMap({ $0 as? NSPopUpButton }).min(by: { $0.frame.minY < $1.frame.minY }) else { return }
+
+		let label = NSTextField(labelWithString: NSLocalizedString("Keyboard Shortcuts:", comment: "Preference label"))
+		label.alignment = .right
+		label.translatesAutoresizingMaskIntoConstraints = false
+		keyboardShortcutStylePopup.translatesAutoresizingMaskIntoConstraints = false
+		for style in KeyboardShortcutStyle.allCases {
+			keyboardShortcutStylePopup.addItem(withTitle: style.localizedName)
+			keyboardShortcutStylePopup.lastItem?.tag = style.rawValue
+		}
+		keyboardShortcutStylePopup.target = self
+		keyboardShortcutStylePopup.action = #selector(keyboardShortcutStyleDidChange(_:))
+		container.addSubview(label)
+		container.addSubview(keyboardShortcutStylePopup)
+
+		container.constraints.filter { $0.firstAttribute == .bottom && $0.secondItem === refreshPopup }.forEach { $0.isActive = false }
+		NSLayoutConstraint.activate([
+			label.leadingAnchor.constraint(equalTo: articleTextSizeLabel.leadingAnchor),
+			label.trailingAnchor.constraint(equalTo: articleTextSizeLabel.trailingAnchor),
+			label.firstBaselineAnchor.constraint(equalTo: keyboardShortcutStylePopup.firstBaselineAnchor),
+			keyboardShortcutStylePopup.leadingAnchor.constraint(equalTo: articleTextSizePopup.leadingAnchor),
+			keyboardShortcutStylePopup.trailingAnchor.constraint(equalTo: articleTextSizePopup.trailingAnchor),
+			keyboardShortcutStylePopup.topAnchor.constraint(equalTo: refreshPopup.bottomAnchor, constant: 12),
+			container.bottomAnchor.constraint(equalTo: keyboardShortcutStylePopup.bottomAnchor, constant: 4)
+		])
+		preferredContentSize = NSSize(width: view.frame.width, height: view.frame.height + 40)
 	}
 
 	func updateArticleThemePopup() {

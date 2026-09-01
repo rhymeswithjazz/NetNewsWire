@@ -81,6 +81,7 @@ final class AppDefaults: Sendable {
 		static let splitViewPreferredDisplayMode = "splitViewPreferredDisplayMode"
 		static let timelineWidth = "timelineWidth"
 		static let sidebarWidth = "sidebarWidth"
+		static let keyboardShortcutStyle = "keyboardShortcutStyle"
 	}
 
 	let isDeveloperBuild: Bool = {
@@ -144,6 +145,16 @@ final class AppDefaults: Sendable {
 		}
 		set {
 			UserDefaults.standard.setValue(newValue, forKey: Key.useSystemBrowser)
+		}
+	}
+
+	var keyboardShortcutStyle: KeyboardShortcutStyle {
+		get {
+			KeyboardShortcutStyle(rawValue: AppDefaults.store.integer(forKey: Key.keyboardShortcutStyle)) ?? .standard
+		}
+		set {
+			AppDefaults.store.set(newValue.rawValue, forKey: Key.keyboardShortcutStyle)
+			NotificationCenter.default.post(name: .keyboardShortcutStyleDidChange, object: nil)
 		}
 	}
 
@@ -431,7 +442,8 @@ final class AppDefaults: Sendable {
 										Key.confirmMarkAllAsRead: true,
 										Key.articleContentJavascriptEnabled: true,
 										Key.currentThemeName: Self.defaultThemeName,
-									   Key.splitViewPreferredDisplayMode: UISplitViewController.DisplayMode.oneBesideSecondary.rawValue]
+									   Key.splitViewPreferredDisplayMode: UISplitViewController.DisplayMode.oneBesideSecondary.rawValue,
+									   Key.keyboardShortcutStyle: KeyboardShortcutStyle.standard.rawValue]
 		AppDefaults.store.register(defaults: defaults)
 	}
 }

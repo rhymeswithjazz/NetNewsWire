@@ -47,4 +47,15 @@ final class SidebarOutlineView: NSOutlineView {
 
 		super.keyDown(with: event)
 	}
+
+	@objc func expandSelectedRowsOrNavigateToTimeline(_ sender: Any?) {
+		guard selectedRow >= 0,
+			  let selectedItem = item(atRow: selectedRow),
+			  isExpandable(selectedItem),
+			  !isItemExpanded(selectedItem) else {
+			NSApplication.shared.sendAction(#selector(MainWindowController.navigateToTimeline(_:)), to: nil, from: self)
+			return
+		}
+		expandItem(selectedItem)
+	}
 }

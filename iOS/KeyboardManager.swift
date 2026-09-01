@@ -13,36 +13,53 @@ enum KeyboardType: String, Sendable {
 	case sidebar = "SidebarKeyboardShortcuts"
 	case timeline = "TimelineKeyboardShortcuts"
 	case detail = "DetailKeyboardShortcuts"
+
+	var context: KeyboardShortcutContext {
+		switch self {
+		case .global: return .global
+		case .sidebar: return .sidebar
+		case .timeline: return .timeline
+		case .detail: return .detail
+		}
+	}
 }
 
 @MainActor final class KeyboardManager {
 
-	private(set) var _keyCommands: [UIKeyCommand]
+	private let type: KeyboardType
+	private let globalEntries: [[String: Any]]
+	private let specificEntries: [[String: Any]]
 	var keyCommands: [UIKeyCommand] {
 		guard !UIResponder.isFirstResponderTextField else { return [UIKeyCommand]() }
-		return _keyCommands
+		return buildKeyCommands()
 	}
 
 	init(type: KeyboardType) {
-		_keyCommands = KeyboardManager.globalAuxilaryKeyCommands()
+		self.type = type
+		let globalFile = Bundle.main.path(forResource: KeyboardType.global.rawValue, ofType: "plist")!
+		globalEntries = NSArray(contentsOfFile: globalFile)! as! [[String: Any]]
+		let specificFile = Bundle.main.path(forResource: type.rawValue, ofType: "plist")!
+		specificEntries = NSArray(contentsOfFile: specificFile)! as! [[String: Any]]
+	}
+
+	private func buildKeyCommands() -> [UIKeyCommand] {
+		var keyCommands = KeyboardManager.globalAuxilaryKeyCommands()
 
 		switch type {
 		case .sidebar:
-			_keyCommands.append(contentsOf: KeyboardManager.hardcodeFeedKeyCommands())
+			keyCommands.append(contentsOf: KeyboardManager.hardcodeFeedKeyCommands())
 		case .timeline, .detail:
-			_keyCommands.append(contentsOf: KeyboardManager.hardcodeArticleKeyCommands())
+			keyCommands.append(contentsOf: KeyboardManager.hardcodeArticleKeyCommands())
 		default:
 			break
 		}
 
-		let globalFile = Bundle.main.path(forResource: KeyboardType.global.rawValue, ofType: "plist")!
-		let globalEntries = NSArray(contentsOfFile: globalFile)! as! [[String: Any]]
-		let globalCommands = globalEntries.compactMap { KeyboardManager.createKeyCommand(keyEntry: $0) }
-		_keyCommands.append(contentsOf: globalCommands)
+		let styledGlobalEntries = KeyboardShortcutProfile.entries(globalEntries, style: AppDefaults.shared.keyboardShortcutStyle, context: .global)
+		keyCommands.append(contentsOf: styledGlobalEntries.compactMap { KeyboardManager.createKeyCommand(keyEntry: $0) })
 
-		let specificFile = Bundle.main.path(forResource: type.rawValue, ofType: "plist")!
-		let specificEntries = NSArray(contentsOfFile: specificFile)! as! [[String: Any]]
-		_keyCommands.append(contentsOf: specificEntries.compactMap { KeyboardManager.createKeyCommand(keyEntry: $0) })
+		let styledSpecificEntries = KeyboardShortcutProfile.entries(specificEntries, style: AppDefaults.shared.keyboardShortcutStyle, context: type.context)
+		keyCommands.append(contentsOf: styledSpecificEntries.compactMap { KeyboardManager.createKeyCommand(keyEntry: $0) })
+		return keyCommands
 	}
 
 	static func createKeyCommand(title: String, action: String, input: String, modifiers: UIKeyModifierFlags) -> UIKeyCommand {
@@ -159,6 +176,9 @@ private extension KeyboardManager {
 		let markAllAsReadTitle = NSLocalizedString("Mark All as Read", comment: "Command")
 		keys.append(KeyboardManager.createKeyCommand(title: markAllAsReadTitle, action: "markAllAsRead:", input: "k", modifiers: [.command]))
 
+		let markAllAndAdvanceTitle = NSLocalizedString("Mark All as Read and Go to Next Unread", comment: "Command")
+		keys.append(KeyboardManager.createKeyCommand(title: markAllAndAdvanceTitle, action: "markAllAsReadAndGoToNextUnread:", input: "l", modifiers: [.command]))
+
 		let cleanUp = NSLocalizedString("Clean Up", comment: "Clean Up button")
 		keys.append(KeyboardManager.createKeyCommand(title: cleanUp, action: "cleanUp:", input: "'", modifiers: [.command]))
 
@@ -176,12 +196,6 @@ private extension KeyboardManager {
 
 	static func hardcodeFeedKeyCommands() -> [UIKeyCommand] {
 		var keys = [UIKeyCommand]()
-
-		let nextUpTitle = NSLocalizedString("Select Next Up", comment: "Select Next Up")
-		keys.append(KeyboardManager.createKeyCommand(title: nextUpTitle, action: "selectNextUp:", input: UIKeyCommand.inputUpArrow, modifiers: []))
-
-		let nextDownTitle = NSLocalizedString("Select Next Down", comment: "Select Next Down")
-		keys.append(KeyboardManager.createKeyCommand(title: nextDownTitle, action: "selectNextDown:", input: UIKeyCommand.inputDownArrow, modifiers: []))
 
 		let getFeedInfo = NSLocalizedString("Get Feed Info", comment: "Get Feed Info")
 		keys.append(KeyboardManager.createKeyCommand(title: getFeedInfo, action: "showFeedInspector:", input: "i", modifiers: .command))

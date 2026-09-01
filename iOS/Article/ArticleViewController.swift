@@ -120,6 +120,7 @@ final class ArticleViewController: UIViewController {
 
 	override func viewDidLoad() {
 		super.viewDidLoad()
+		NotificationCenter.default.addObserver(self, selector: #selector(keyboardShortcutStyleDidChange(_:)), name: .keyboardShortcutStyleDidChange, object: nil)
 
 		NotificationCenter.default.addObserver(self, selector: #selector(unreadCountDidChange(_:)), name: .UnreadCountDidChange, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(statusesDidChange(_:)), name: .StatusesDidChange, object: nil)
@@ -212,6 +213,10 @@ final class ArticleViewController: UIViewController {
 		view.bringSubviewToFront(searchBar)
 
 		updateUI()
+	}
+
+	@objc private func keyboardShortcutStyleDidChange(_ note: Notification) {
+		setNeedsUpdateOfKeyCommands()
 	}
 
 	override func viewWillAppear(_ animated: Bool) {
@@ -400,8 +405,16 @@ final class ArticleViewController: UIViewController {
 		currentWebViewController?.scrollPageDown()
 	}
 
+	@objc func scrollPageDown(_ sender: Any?) {
+		scrollPageDown()
+	}
+
 	func scrollPageUp() {
 		currentWebViewController?.scrollPageUp()
+	}
+
+	@objc func scrollPageUp(_ sender: Any?) {
+		scrollPageUp()
 	}
 
 	func stopArticleExtractorIfProcessing() {

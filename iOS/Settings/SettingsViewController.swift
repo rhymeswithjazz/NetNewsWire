@@ -48,6 +48,7 @@ final class SettingsViewController: UITableViewController {
 		case refreshClearsReadArticles = 2
 		case confirmMarkAllAsRead = 3
 		case timelineLayout = 4
+		case keyboardShortcuts = 5
 	}
 
 	private enum ArticlesRow: Int, CaseIterable {
@@ -74,6 +75,7 @@ final class SettingsViewController: UITableViewController {
 	@IBOutlet var confirmMarkAllAsReadSwitch: UISwitch!
 	@IBOutlet var showFullscreenArticlesSwitch: UISwitch!
 	@IBOutlet var colorPaletteDetailLabel: UILabel!
+	@IBOutlet var keyboardShortcutStyleDetailLabel: UILabel!
 	@IBOutlet var openLinksInNetNewsWire: UISwitch!
 	@IBOutlet var enableJavaScriptSwitch: UISwitch!
 
@@ -138,6 +140,7 @@ final class SettingsViewController: UITableViewController {
 		}
 
 		colorPaletteDetailLabel.text = String(describing: AppDefaults.userInterfaceColorPalette)
+		keyboardShortcutStyleDetailLabel.text = AppDefaults.shared.keyboardShortcutStyle.localizedName
 
 		openLinksInNetNewsWire.isOn = !AppDefaults.shared.useSystemBrowser
 
@@ -260,6 +263,8 @@ final class SettingsViewController: UITableViewController {
 			case .timelineLayout:
 				let timeline = UIStoryboard.settings.instantiateController(ofType: TimelineCustomizerCollectionViewController.self)
 				self.navigationController?.pushViewController(timeline, animated: true)
+			case .keyboardShortcuts:
+				showKeyboardShortcutStylePicker(sourceView: tableView.cellForRow(at: indexPath))
 			default:
 				break
 			}
@@ -424,6 +429,23 @@ final class SettingsViewController: UITableViewController {
 		tableView.reloadData()
 	}
 
+}
+
+private extension SettingsViewController {
+	func showKeyboardShortcutStylePicker(sourceView: UIView?) {
+		let alert = UIAlertController(title: NSLocalizedString("Keyboard Shortcuts", comment: "Settings title"), message: nil, preferredStyle: .actionSheet)
+		for style in KeyboardShortcutStyle.allCases {
+			let title = style == AppDefaults.shared.keyboardShortcutStyle ? "✓ \(style.localizedName)" : style.localizedName
+			alert.addAction(UIAlertAction(title: title, style: .default) { [weak self] _ in
+				AppDefaults.shared.keyboardShortcutStyle = style
+				self?.keyboardShortcutStyleDetailLabel.text = style.localizedName
+			})
+		}
+		alert.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: "Cancel button"), style: .cancel))
+		alert.popoverPresentationController?.sourceView = sourceView
+		alert.popoverPresentationController?.sourceRect = sourceView?.bounds ?? .zero
+		present(alert, animated: true)
+	}
 }
 
 // MARK: - OPML Document Picker

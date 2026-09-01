@@ -330,6 +330,14 @@ final class MainWindowController: NSWindowController, NSUserInterfaceValidations
 		}
 	}
 
+	@IBAction override func scrollPageDown(_ sender: Any?) {
+		detailViewController?.scrollPageDown(sender)
+	}
+
+	@IBAction override func scrollPageUp(_ sender: Any?) {
+		detailViewController?.scrollPageUp(sender)
+	}
+
 	@IBAction func copyArticleURL(_ sender: Any?) {
 		guard let articles = selectedArticles else {
 			assertionFailure("Expected selectedArticles to be non-nil")

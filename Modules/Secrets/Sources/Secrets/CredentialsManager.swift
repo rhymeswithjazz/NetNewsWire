@@ -19,12 +19,22 @@ public struct CredentialsManager {
 	private static let logger = Logger(subsystem: Logger.nnwSubsystem, category: "CredentialsManager")
 
 	private static let keychainGroup: String? = {
+		#if SKIP_APP_GROUP_ACCESS
+		// Local Debug builds are commonly ad-hoc signed and therefore do not
+		// have the entitlement required to name an explicit keychain group.
+		// Omitting kSecAttrAccessGroup uses the app's private keychain instead.
+		return nil
+		#else
 		guard let appGroup = Bundle.main.object(forInfoDictionaryKey: "AppGroup") as? String else {
 			return nil
 		}
-		let appIdentifierPrefix = Bundle.main.object(forInfoDictionaryKey: "AppIdentifierPrefix") as! String
+		guard let appIdentifierPrefix = Bundle.main.object(forInfoDictionaryKey: "AppIdentifierPrefix") as? String,
+				!appIdentifierPrefix.isEmpty else {
+			return nil
+		}
 		let appGroupSuffix = appGroup.suffix(appGroup.count - 6)
 		return "\(appIdentifierPrefix)\(appGroupSuffix)"
+		#endif
 	}()
 
 	/// Delays used between retry attempts. Total wait across all
@@ -85,21 +95,21 @@ public struct CredentialsManager {
 			throw error
 		}
 
-		// Remove kSecValueData so the delete matches by identity
-		// (server, username, type) regardless of the stored secret.
-		// Without this, the delete fails when the token has changed
-		// (as during an OAuth refresh), and the re-add fails
-		// with errSecDuplicateItem.
-		var deleteQuery = query
-		deleteQuery.removeValue(forKey: kSecAttrAccessible as String)
-		deleteQuery.removeValue(forKey: kSecValueData as String)
-		SecItemDelete(deleteQuery as CFDictionary)
-
-		let addStatus = SecItemAdd(query as CFDictionary, nil)
-		if addStatus != errSecSuccess {
-			logger.error("CredentialsManager: storeCredentials (after delete) failed — \(CredentialsError.keychainStatusMessage(addStatus), privacy: .public)")
-			let error = CredentialsError.keychainStoreFailure(status: addStatus)
-			postAppDidEncounterError(operation: "Storing credentials after delete", error: error)
+		// Update the existing item atomically. Deleting and re-adding is both
+		// unnecessary and unreliable when the item's access control requires
+		// authorization or the saved secret has changed.
+		var matchQuery = query
+		matchQuery.removeValue(forKey: kSecAttrAccessible as String)
+		matchQuery.removeValue(forKey: kSecValueData as String)
+		let attributesToUpdate: [String: Any] = [
+			kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+			kSecValueData as String: secretData
+		]
+		let updateStatus = SecItemUpdate(matchQuery as CFDictionary, attributesToUpdate as CFDictionary)
+		if updateStatus != errSecSuccess {
+			logger.error("CredentialsManager: storeCredentials update failed — \(CredentialsError.keychainStatusMessage(updateStatus), privacy: .public)")
+			let error = CredentialsError.keychainStoreFailure(status: updateStatus)
+			postAppDidEncounterError(operation: "Updating credentials", error: error)
 			throw error
 		}
 	}

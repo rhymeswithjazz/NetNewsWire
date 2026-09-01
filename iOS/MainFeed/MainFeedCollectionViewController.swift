@@ -75,6 +75,7 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 
 	override func viewDidLoad() {
 		super.viewDidLoad()
+		NotificationCenter.default.addObserver(self, selector: #selector(keyboardShortcutStyleDidChange(_:)), name: .keyboardShortcutStyleDidChange, object: nil)
 		registerForNotifications()
 		configureCurrentActivityButton()
 		configureCollectionView()
@@ -87,6 +88,10 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 	override func viewDidLayoutSubviews() {
 		super.viewDidLayoutSubviews()
 		coordinator?.sidebarDidLayout()
+	}
+
+	@objc private func keyboardShortcutStyleDidChange(_ note: Notification) {
+		setNeedsUpdateOfKeyCommands()
 	}
 
 	func configureCurrentActivityButton() {
@@ -606,6 +611,17 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 				folder.setDisclosure(isExpanded: true, animated: true)
 			}
 		}
+	}
+
+	@objc func expandSelectedRowsOrNavigateToTimeline(_ sender: Any?) {
+		guard let indexPath = coordinator.currentFeedIndexPath,
+			  let node = coordinator.nodeFor(indexPath),
+			  node.representedObject is Folder,
+			  !coordinator.isExpanded(node) else {
+			coordinator.navigateToTimeline()
+			return
+		}
+		expandSelectedRows(sender)
 	}
 
 	@objc func markAllAsRead(_ sender: Any) {

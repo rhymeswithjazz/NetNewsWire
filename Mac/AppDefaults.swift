@@ -43,6 +43,7 @@ final class AppDefaults: Sendable {
 		static let defaultBrowserID = "defaultBrowserID"
 		static let currentThemeName = "currentThemeName"
 		static let articleContentJavascriptEnabled = "articleContentJavascriptEnabled"
+		static let keyboardShortcutStyle = "keyboardShortcutStyle"
 
 		// Hidden prefs
 		static let showDebugMenu = "ShowDebugMenu"
@@ -221,6 +222,16 @@ final class AppDefaults: Sendable {
 		}
 	}
 
+	var keyboardShortcutStyle: KeyboardShortcutStyle {
+		get {
+			KeyboardShortcutStyle(rawValue: UserDefaults.standard.integer(forKey: Key.keyboardShortcutStyle)) ?? .standard
+		}
+		set {
+			UserDefaults.standard.set(newValue.rawValue, forKey: Key.keyboardShortcutStyle)
+			NotificationCenter.default.post(name: .keyboardShortcutStyleDidChange, object: nil)
+		}
+	}
+
 	var showTitleOnMainWindow: Bool {
 		return AppDefaults.bool(for: Key.showTitleOnMainWindow)
 	}
@@ -344,7 +355,8 @@ final class AppDefaults: Sendable {
 			Key.refreshInterval: RefreshInterval.every2Hours.rawValue,
 			Key.showDebugMenu: showDebugMenu,
 			Key.currentThemeName: Self.defaultThemeName,
-			Key.articleContentJavascriptEnabled: true
+			Key.articleContentJavascriptEnabled: true,
+			Key.keyboardShortcutStyle: KeyboardShortcutStyle.standard.rawValue
 		]
 
 		UserDefaults.standard.register(defaults: defaults)

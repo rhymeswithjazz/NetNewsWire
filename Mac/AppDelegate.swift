@@ -637,9 +637,6 @@ let appName = "NetNewsWire"
 		if keyboardShortcutsWindowController == nil {
 
 			keyboardShortcutsWindowController = WebViewWindowController(title: NSLocalizedString("Keyboard Shortcuts", comment: "window title"))
-			let htmlFile = Bundle(for: type(of: self)).path(forResource: "KeyboardShortcuts", ofType: "html")!
-			keyboardShortcutsWindowController?.displayContents(of: htmlFile)
-
 			if let window = keyboardShortcutsWindowController?.window {
 				let point = NSPoint(x: 128, y: 64)
 				let size = NSSize(width: 620, height: 1100)
@@ -648,6 +645,9 @@ let appName = "NetNewsWire"
 			}
 
 		}
+		let resourceName = AppDefaults.shared.keyboardShortcutStyle == .vim ? "KeyboardShortcuts-Vim" : "KeyboardShortcuts"
+		let htmlFile = Bundle(for: type(of: self)).path(forResource: resourceName, ofType: "html")!
+		keyboardShortcutsWindowController?.displayContents(of: htmlFile)
 
 		keyboardShortcutsWindowController!.showWindow(self)
 	}

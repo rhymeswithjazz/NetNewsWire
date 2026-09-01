@@ -162,6 +162,7 @@ final class MainTimelineModernViewController: UIViewController, UndoableCommandR
 
     override func viewDidLoad() {
         super.viewDidLoad()
+		NotificationCenter.default.addObserver(self, selector: #selector(keyboardShortcutStyleDidChange(_:)), name: .keyboardShortcutStyleDidChange, object: nil)
 
 		assert(collectionView != nil)
 		dataSource = makeDataSource(collectionView!)
@@ -210,6 +211,10 @@ final class MainTimelineModernViewController: UIViewController, UndoableCommandR
 		super.viewDidLayoutSubviews()
 		updateToolbarProgressView()
 		coordinator?.timelineDidLayout()
+	}
+
+	@objc private func keyboardShortcutStyleDidChange(_ note: Notification) {
+		setNeedsUpdateOfKeyCommands()
 	}
 
 	override func viewWillAppear(_ animated: Bool) {
