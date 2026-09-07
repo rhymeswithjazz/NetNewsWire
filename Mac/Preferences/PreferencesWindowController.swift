@@ -136,7 +136,7 @@ private extension PreferencesWindowController {
 
 		window!.title = toolbarItemSpec.name
 
-		resizeWindow(toFitView: newViewController.view)
+		resizeWindow(toFit: newViewController)
 
 		if let currentView = currentView {
 			window!.contentView?.replaceSubview(currentView, with: newViewController.view)
@@ -162,12 +162,15 @@ private extension PreferencesWindowController {
 		return viewController
 	}
 
-	func resizeWindow(toFitView view: NSView) {
+	func resizeWindow(toFit viewController: NSViewController) {
+		let view = viewController.view
 		let viewFrame = view.frame
+		// Programmatically added controls can need more room than the storyboard frame.
+		let viewHeight = max(viewFrame.height, viewController.preferredContentSize.height, view.fittingSize.height)
 		let windowFrame = window!.frame
 		let contentViewFrame = window!.contentView!.frame
 
-		let deltaHeight = contentViewFrame.height - viewFrame.height
+		let deltaHeight = contentViewFrame.height - viewHeight
 		let heightForWindow = windowFrame.height - deltaHeight
 		let windowOriginY = windowFrame.minY + deltaHeight
 
@@ -179,6 +182,7 @@ private extension PreferencesWindowController {
 		var updatedViewFrame = viewFrame
 		updatedViewFrame.origin = NSPoint.zero
 		updatedViewFrame.size.width = windowWidth
+		updatedViewFrame.size.height = viewHeight
 		if viewFrame != updatedViewFrame {
 			view.frame = updatedViewFrame
 		}
