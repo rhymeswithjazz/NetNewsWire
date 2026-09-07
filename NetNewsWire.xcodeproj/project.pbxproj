@@ -1355,7 +1355,6 @@
 			baseConfigurationReferenceAnchor = 84719F372DB9C60400EEF332 /* xcconfig */;
 			baseConfigurationReferenceRelativePath = NetNewsWire_macapp_target.xcconfig;
 			buildSettings = {
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.news";
 			};
 			name = Debug;
 		};
@@ -1364,7 +1363,6 @@
 			baseConfigurationReferenceAnchor = 84719F372DB9C60400EEF332 /* xcconfig */;
 			baseConfigurationReferenceRelativePath = NetNewsWire_macapp_target.xcconfig;
 			buildSettings = {
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.news";
 			};
 			name = Release;
 		};
