@@ -13,17 +13,13 @@ final class AdvancedPreferencesViewController: NSViewController {
 	@IBOutlet var releaseBuildsButton: NSButton!
 	@IBOutlet var testBuildsButton: NSButton!
 
-	let releaseBuildsURL = Bundle.main.infoDictionary!["SUFeedURL"]! as! String
-	let testBuildsURL = Bundle.main.infoDictionary!["FeedURLForTestBuilds"]! as! String
-	let appcastDefaultsKey = "SUFeedURL"
-
 	var didRegisterForNotification = false
 	var wantsTestBuilds: Bool {
 		get {
-			return currentAppcastURL() == testBuildsURL
+			UserDefaults.standard.bool(forKey: SoftwareUpdateSettings.testBuildsKey)
 		}
 		set {
-			UserDefaults.standard.set(newValue ? testBuildsURL : releaseBuildsURL, forKey: appcastDefaultsKey)
+			UserDefaults.standard.set(newValue, forKey: SoftwareUpdateSettings.testBuildsKey)
 		}
 	}
 
@@ -41,7 +37,7 @@ final class AdvancedPreferencesViewController: NSViewController {
 	}
 
 	@IBAction func updateTypeButtonClicked(_ sender: Any?) {
-		guard AppDefaults.softwareUpdatesEnabled, let button = sender as? NSButton else {
+		guard SoftwareUpdateSettings.shared.isEnabled, let button = sender as? NSButton else {
 			return
 		}
 		wantsTestBuilds = (button === testBuildsButton)
@@ -55,16 +51,9 @@ final class AdvancedPreferencesViewController: NSViewController {
 private extension AdvancedPreferencesViewController {
 
 	func updateUI() {
-		releaseBuildsButton.isEnabled = AppDefaults.softwareUpdatesEnabled
-		testBuildsButton.isEnabled = AppDefaults.softwareUpdatesEnabled
-		if wantsTestBuilds {
-			testBuildsButton.state = .on
-		} else {
-			releaseBuildsButton.state = .on
-		}
-	}
-
-	func currentAppcastURL() -> String {
-		return UserDefaults.standard.string(forKey: appcastDefaultsKey) ?? ""
+		releaseBuildsButton.isEnabled = SoftwareUpdateSettings.shared.isEnabled
+		testBuildsButton.isEnabled = SoftwareUpdateSettings.shared.isEnabled
+		testBuildsButton.state = wantsTestBuilds ? .on : .off
+		releaseBuildsButton.state = wantsTestBuilds ? .off : .on
 	}
 }

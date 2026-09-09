@@ -2,12 +2,15 @@
 
 ## Add a Sparkle update feed for this fork
 
-Software updates are disabled through `AppDefaults.softwareUpdatesEnabled` until this fork has its own release feed.
+The implementation and release commands are documented in [Personal releases](Technotes/PersonalReleases.md). Development builds keep updates disabled; packaged personal releases enable the fork feed.
 
-- Choose hosting for the appcast and release ZIPs. Start with GitHub Pages and GitHub Releases if public downloads are acceptable.
-- Replace both Ranchero feed URLs and migrate saved feed preferences so no update path points upstream.
-- Generate a Sparkle signing key, embed the public key, and keep the private key outside the repo.
-- Automate universal Release archives, Developer ID export, notarization, stapling, ZIP packaging, and signed appcast generation.
-- Assign increasing build numbers and publish the download before updating the appcast.
-- Verify an update between two fork builds on another Mac, including signature validation and preservation of user data.
-- Re-enable Sparkle and the update controls only after the fork feed works.
+- [x] Replace Ranchero feeds and migrate saved preferences.
+- [x] Generate a Sparkle key and embed the public key.
+- [x] Add local packaging and draft release commands.
+- [x] Add a GitHub Pages workflow that publishes the feed after release assets are available.
+- [x] Install a Developer ID Application certificate and store notarization credentials.
+- [x] Validate Developer ID export, Apple notarization, Gatekeeper acceptance, and the signed ZIP/appcast locally.
+- [x] Enable GitHub Pages for Actions, allowing main and personal release tags.
+- [ ] Merge the workflow and publish the initial feed.
+- [ ] Package and manually install the first personal release.
+- [ ] Verify an update between two fork builds on another Mac, including signature validation and preservation of user data.

@@ -61,8 +61,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>DeveloperEntitlements</key>
 	<string>$(DEVELOPER_ENTITLEMENTS)</string>
-	<key>FeedURLForTestBuilds</key>
-	<string>https://ranchero.com/downloads/netnewswire-beta.xml</string>
+	<key>ForkSoftwareUpdatesEnabled</key>
+	<string>$(FORK_SOFTWARE_UPDATES_ENABLED)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSApplicationCategoryType</key>
@@ -96,8 +96,10 @@
 	<string>$(ORGANIZATION_IDENTIFIER)</string>
 	<key>SUEnableInstallerLauncherService</key>
 	<true/>
+	<key>SUPublicEDKey</key>
+	<string>QwkIuFxKrswZelZzWKph3KB+qRhVnVNzftQofBO+7jk=</string>
 	<key>SUFeedURL</key>
-	<string>https://ranchero.com/downloads/netnewswire-release.xml</string>
+	<string>https://rhymeswithjazz.github.io/NetNewsWire/appcast.xml</string>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
 		<dict>

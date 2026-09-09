@@ -169,17 +169,8 @@ let appName = "NetNewsWire"
 			await WebViewConfiguration.compileContentBlockingRules()
 		}
 
-		if AppDefaults.softwareUpdatesEnabled {
-			// Ensure the Sparkle feed URL is one of the two supported URLs.
-			// Default to the release builds URL from Info.plist.
-			if let infoDictionary = Bundle.main.infoDictionary,
-			   let releaseBuildsURL = infoDictionary["SUFeedURL"] as? String,
-			   let testBuildsURL = infoDictionary["FeedURLForTestBuilds"] as? String,
-			   let currentFeedURL = UserDefaults.standard.string(forKey: "SUFeedURL"),
-			   currentFeedURL != releaseBuildsURL && currentFeedURL != testBuildsURL {
-				UserDefaults.standard.set(releaseBuildsURL, forKey: "SUFeedURL")
-			}
-
+		SoftwareUpdateSettings.shared.migratePreferences(.standard)
+		if SoftwareUpdateSettings.shared.isEnabled {
 			// Initialize Sparkle...
 			let hostBundle = Bundle.main
 			let updateDriver = SPUStandardUserDriver(hostBundle: hostBundle, delegate: self)
@@ -487,7 +478,7 @@ let appName = "NetNewsWire"
 		}
 
 		if item.action == #selector(checkForUpdates(_:)) {
-			return AppDefaults.softwareUpdatesEnabled && softwareUpdater != nil
+			return SoftwareUpdateSettings.shared.isEnabled && softwareUpdater != nil
 		}
 
 		let isDisplayingSheet = mainWindowController?.isDisplayingSheet ?? false
@@ -778,8 +769,16 @@ let appName = "NetNewsWire"
 		AppDefaults.shared.timelineGroupByFeed.toggle()
 	}
 
+	func feedURLString(for updater: SPUUpdater) -> String? {
+		SoftwareUpdateSettings.shared.feedURL
+	}
+
+	func allowedChannels(for updater: SPUUpdater) -> Set<String> {
+		UserDefaults.standard.bool(forKey: SoftwareUpdateSettings.testBuildsKey) ? ["beta"] : []
+	}
+
 	@IBAction func checkForUpdates(_ sender: Any?) {
-		guard AppDefaults.softwareUpdatesEnabled else {
+		guard SoftwareUpdateSettings.shared.isEnabled else {
 			return
 		}
 		softwareUpdater?.checkForUpdates()

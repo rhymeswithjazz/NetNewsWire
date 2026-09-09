@@ -14,6 +14,13 @@ permissions:
   contents: read
 
 jobs:
+  personal-release-tests:
+    name: Personal release tooling
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: python3 -m unittest discover -s buildscripts/tests -p 'test_personal_*.py'
+
   swiftlint:
     name: SwiftLint
     runs-on: macos-26
