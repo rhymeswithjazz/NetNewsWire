@@ -41,7 +41,7 @@ final class AdvancedPreferencesViewController: NSViewController {
 	}
 
 	@IBAction func updateTypeButtonClicked(_ sender: Any?) {
-		guard let button = sender as? NSButton else {
+		guard AppDefaults.softwareUpdatesEnabled, let button = sender as? NSButton else {
 			return
 		}
 		wantsTestBuilds = (button === testBuildsButton)
@@ -55,6 +55,8 @@ final class AdvancedPreferencesViewController: NSViewController {
 private extension AdvancedPreferencesViewController {
 
 	func updateUI() {
+		releaseBuildsButton.isEnabled = AppDefaults.softwareUpdatesEnabled
+		testBuildsButton.isEnabled = AppDefaults.softwareUpdatesEnabled
 		if wantsTestBuilds {
 			testBuildsButton.state = .on
 		} else {

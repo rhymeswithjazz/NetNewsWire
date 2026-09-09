@@ -17,6 +17,8 @@ enum FontSize: Int {
 
 final class AppDefaults: Sendable {
 
+	static let softwareUpdatesEnabled = false
+
 	static let defaultThemeName = "Default"
 
 	static let shared = AppDefaults()

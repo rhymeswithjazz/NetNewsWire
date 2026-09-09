@@ -169,25 +169,27 @@ let appName = "NetNewsWire"
 			await WebViewConfiguration.compileContentBlockingRules()
 		}
 
-		// Ensure the Sparkle feed URL is one of the two supported URLs.
-		// Default to the release builds URL from Info.plist.
-		if let infoDictionary = Bundle.main.infoDictionary,
-		   let releaseBuildsURL = infoDictionary["SUFeedURL"] as? String,
-		   let testBuildsURL = infoDictionary["FeedURLForTestBuilds"] as? String,
-		   let currentFeedURL = UserDefaults.standard.string(forKey: "SUFeedURL"),
-		   currentFeedURL != releaseBuildsURL && currentFeedURL != testBuildsURL {
-			UserDefaults.standard.set(releaseBuildsURL, forKey: "SUFeedURL")
-		}
+		if AppDefaults.softwareUpdatesEnabled {
+			// Ensure the Sparkle feed URL is one of the two supported URLs.
+			// Default to the release builds URL from Info.plist.
+			if let infoDictionary = Bundle.main.infoDictionary,
+			   let releaseBuildsURL = infoDictionary["SUFeedURL"] as? String,
+			   let testBuildsURL = infoDictionary["FeedURLForTestBuilds"] as? String,
+			   let currentFeedURL = UserDefaults.standard.string(forKey: "SUFeedURL"),
+			   currentFeedURL != releaseBuildsURL && currentFeedURL != testBuildsURL {
+				UserDefaults.standard.set(releaseBuildsURL, forKey: "SUFeedURL")
+			}
 
-		// Initialize Sparkle...
-		let hostBundle = Bundle.main
-		let updateDriver = SPUStandardUserDriver(hostBundle: hostBundle, delegate: self)
-		softwareUpdater = SPUUpdater(hostBundle: hostBundle, applicationBundle: hostBundle, userDriver: updateDriver, delegate: self)
+			// Initialize Sparkle...
+			let hostBundle = Bundle.main
+			let updateDriver = SPUStandardUserDriver(hostBundle: hostBundle, delegate: self)
+			softwareUpdater = SPUUpdater(hostBundle: hostBundle, applicationBundle: hostBundle, userDriver: updateDriver, delegate: self)
 
-		do {
-			try softwareUpdater?.start()
-		} catch {
-			Self.logger.error("Failed to start software updater with error: \(error.localizedDescription)")
+			do {
+				try softwareUpdater?.start()
+			} catch {
+				Self.logger.error("Failed to start software updater with error: \(error.localizedDescription)")
+			}
 		}
 
 		AppDefaults.shared.registerDefaults()
@@ -484,6 +486,10 @@ let appName = "NetNewsWire"
 			return false
 		}
 
+		if item.action == #selector(checkForUpdates(_:)) {
+			return AppDefaults.softwareUpdatesEnabled && softwareUpdater != nil
+		}
+
 		let isDisplayingSheet = mainWindowController?.isDisplayingSheet ?? false
 
 		if item.action == #selector(refreshAll(_:)) {
@@ -773,6 +779,9 @@ let appName = "NetNewsWire"
 	}
 
 	@IBAction func checkForUpdates(_ sender: Any?) {
+		guard AppDefaults.softwareUpdatesEnabled else {
+			return
+		}
 		softwareUpdater?.checkForUpdates()
 	}
 }
