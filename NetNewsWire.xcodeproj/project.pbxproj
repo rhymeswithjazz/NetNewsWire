@@ -419,6 +419,7 @@
 				ArticleSpecifier.swift,
 				Assets.swift,
 				"Extensions/Node+Extensions.swift",
+				KeyboardShortcutStyle.swift,
 				ShareExtension/ExtensionContainers.swift,
 				ShareExtension/ExtensionContainersFile.swift,
 				ShareExtension/ExtensionFeedAddRequest.swift,

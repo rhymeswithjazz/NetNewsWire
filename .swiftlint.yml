@@ -34,6 +34,8 @@ disabled_rules:
   - optional_data_string_conversion
 
 excluded:
+  - "build"
+  - "DerivedData"
   - ".build"
   - ".git"
   - ".swiftpm"
@@ -45,5 +47,4 @@ excluded:
   - Widget/Resources/Localized.swift
   - Shared/Extensions/NSAttributedString+NetNewsWire.swift
   - buildscripts/
-
 
