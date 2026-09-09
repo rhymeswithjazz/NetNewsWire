@@ -216,7 +216,7 @@ final class ArticleViewController: UIViewController {
 	}
 
 	@objc private func keyboardShortcutStyleDidChange(_ note: Notification) {
-		setNeedsUpdateOfKeyCommands()
+		UIMenuSystem.main.setNeedsRebuild()
 	}
 
 	override func viewWillAppear(_ animated: Bool) {

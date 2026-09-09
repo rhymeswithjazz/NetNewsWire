@@ -91,7 +91,7 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 	}
 
 	@objc private func keyboardShortcutStyleDidChange(_ note: Notification) {
-		setNeedsUpdateOfKeyCommands()
+		UIMenuSystem.main.setNeedsRebuild()
 	}
 
 	func configureCurrentActivityButton() {
