@@ -22,7 +22,8 @@ public struct CredentialsManager {
 		#if SKIP_APP_GROUP_ACCESS
 		// Local Debug builds are commonly ad-hoc signed and therefore do not
 		// have the entitlement required to name an explicit keychain group.
-		// Omitting kSecAttrAccessGroup uses the app's private keychain instead.
+		// Omitting kSecAttrAccessGroup uses the default keychain search scope;
+		// on macOS, existing items still enforce their access controls.
 		return nil
 		#else
 		guard let appGroup = Bundle.main.object(forInfoDictionaryKey: "AppGroup") as? String else {
@@ -47,6 +48,14 @@ public struct CredentialsManager {
 	private static func isTransientKeychainError(_ status: OSStatus) -> Bool {
 		switch status {
 		case errSecSuccess, errSecItemNotFound, errSecDuplicateItem:
+			return false
+		case errSecUserCanceled, errSecAuthFailed, errSecInteractionNotAllowed, errSecInteractionRequired:
+			// Retrying cannot grant access or unlock the keychain. In particular,
+			// respect a canceled/denied authorization prompt instead of showing
+			// it up to four more times during the same credential operation.
+			return false
+		case errSecMissingEntitlement, errSecParam:
+			// Signing and query errors cannot be resolved by waiting either.
 			return false
 		default:
 			return true
