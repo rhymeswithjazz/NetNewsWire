@@ -51,7 +51,7 @@ public enum FeedbinAccountDelegateError: String, Error, Sendable {
 		}
 	}
 
-	private let syncDatabase: SyncDatabase
+	let syncDatabase: SyncDatabase
 	private let caller: FeedbinAPICaller
 	private var articlesRefreshedCount = 0
 	private static let logger = Feedbin.logger
@@ -114,24 +114,44 @@ public enum FeedbinAccountDelegateError: String, Error, Sendable {
 
 		do {
 			return try await account.logActivity(kind: .sendArticleStatuses) { () -> Int in
-				guard let syncStatuses = await syncDatabase.selectForProcessing() else {
+				guard let syncStatuses = try? await syncDatabase.selectForProcessing() else {
 					return 0
 				}
 
 				var sentCount = 0
+				var savedError: Error?
 
 				let createUnreadStatuses = Array(syncStatuses.filter { $0.key == SyncStatus.Key.read && $0.flag == false })
-				sentCount += try await sendArticleStatuses(createUnreadStatuses, apiCall: caller.createUnreadEntries)
+				do {
+					sentCount += try await sendArticleStatuses(createUnreadStatuses, apiCall: caller.createUnreadEntries)
+				} catch {
+					savedError = error
+				}
 
 				let deleteUnreadStatuses = Array(syncStatuses.filter { $0.key == SyncStatus.Key.read && $0.flag == true })
-				sentCount += try await sendArticleStatuses(deleteUnreadStatuses, apiCall: caller.deleteUnreadEntries)
+				do {
+					sentCount += try await sendArticleStatuses(deleteUnreadStatuses, apiCall: caller.deleteUnreadEntries)
+				} catch {
+					savedError = error
+				}
 
 				let createStarredStatuses = Array(syncStatuses.filter { $0.key == SyncStatus.Key.starred && $0.flag == true })
-				sentCount += try await sendArticleStatuses(createStarredStatuses, apiCall: caller.createStarredEntries)
+				do {
+					sentCount += try await sendArticleStatuses(createStarredStatuses, apiCall: caller.createStarredEntries)
+				} catch {
+					savedError = error
+				}
 
 				let deleteStarredStatuses = Array(syncStatuses.filter { $0.key == SyncStatus.Key.starred && $0.flag == false })
-				sentCount += try await sendArticleStatuses(deleteStarredStatuses, apiCall: caller.deleteStarredEntries)
+				do {
+					sentCount += try await sendArticleStatuses(deleteStarredStatuses, apiCall: caller.deleteStarredEntries)
+				} catch {
+					savedError = error
+				}
 
+				if let savedError {
+					throw savedError
+				}
 				return sentCount
 			}
 		} catch {
@@ -442,7 +462,7 @@ public enum FeedbinAccountDelegateError: String, Error, Sendable {
 		if !syncStatuses.isEmpty {
 			NotificationCenter.default.post(name: .AccountDidQueueArticleStatuses, object: account)
 		}
-		if let count = await syncDatabase.selectPendingCount(), count > 100 {
+		if let count = try? await syncDatabase.selectPendingCount(), count > 100 {
 			// Flush in the background so marking doesn't block the caller
 			// <https://github.com/Ranchero-Software/NetNewsWire/issues/5273>
 			Task { try? await sendArticleStatus() }
@@ -569,7 +589,8 @@ private extension FeedbinAccountDelegate {
 	}
 
 	func refreshArticlesAndStatuses(_ account: Account) async throws {
-		try await sendArticleStatus()
+		// A failed status send must not block fetching new articles.
+		try? await sendArticleStatus()
 		try await refreshArticleStatus()
 		try await refreshArticles(account)
 		try await refreshMissingArticles(account)
@@ -973,7 +994,7 @@ private extension FeedbinAccountDelegate {
 			return 0
 		}
 
-		guard let pendingArticleIDs = await syncDatabase.selectPendingReadStatusArticleIDs() else {
+		guard let pendingArticleIDs = try? await syncDatabase.selectPendingReadStatusArticleIDs() else {
 			return 0
 		}
 
@@ -998,7 +1019,7 @@ private extension FeedbinAccountDelegate {
 			return 0
 		}
 
-		guard let pendingArticleIDs = await syncDatabase.selectPendingStarredStatusArticleIDs() else {
+		guard let pendingArticleIDs = try? await syncDatabase.selectPendingStarredStatusArticleIDs() else {
 			return 0
 		}
 

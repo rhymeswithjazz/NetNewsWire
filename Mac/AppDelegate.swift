@@ -52,9 +52,7 @@ let appName = "NetNewsWire"
 	private var isShutDownSyncDone = false
 
 	@IBOutlet var debugMenuItem: NSMenuItem!
-	@IBOutlet var sortByOldestArticleOnTopMenuItem: NSMenuItem!
-	@IBOutlet var sortByNewestArticleOnTopMenuItem: NSMenuItem!
-	@IBOutlet var groupArticlesByFeedMenuItem: NSMenuItem!
+	@IBOutlet var useColumnLayoutMenuItem: NSMenuItem!
 	@IBOutlet var checkForUpdatesMenuItem: NSMenuItem!
 
 	var unreadCount = 0 {
@@ -83,7 +81,7 @@ let appName = "NetNewsWire"
 	}
 
 	private var mainWindowControllers = [MainWindowController]()
-	private lazy var preferencesWindowController = windowControllerWithName("Preferences")
+	private lazy var preferencesWindowController = PreferencesWindowController()
 	private var aboutWindowController: AboutWindowController?
 	private var addFeedController: AddFeedController?
 	private var addFolderWindowController: AddFolderWindowController?
@@ -169,6 +167,9 @@ let appName = "NetNewsWire"
 			await WebViewConfiguration.compileContentBlockingRules()
 		}
 
+		// Load now, while the app bundle is readable. A translocated app that gets moved can’t read it later.
+		_ = MainWindowKeyboardHandler.shared
+
 		SoftwareUpdateSettings.shared.migratePreferences(.standard)
 		if SoftwareUpdateSettings.shared.isEnabled {
 			// Initialize Sparkle...
@@ -194,8 +195,7 @@ let appName = "NetNewsWire"
 			DefaultFeedsImporter.importDefaultFeeds(account: localAccount)
 		}
 
-		updateSortMenuItems()
-		updateGroupByFeedMenuItem()
+		updateColumnLayoutMenuItem()
 
 		if mainWindowController == nil {
 			let mainWindowController = createAndShowMainWindow()
@@ -250,15 +250,8 @@ let appName = "NetNewsWire"
 		refreshTimer = AccountRefreshTimer()
 		ArticleStatusSyncTimer.shared.start()
 
-		UNUserNotificationCenter.current().requestAuthorization(options: [.badge]) { _, _ in }
-
-		UNUserNotificationCenter.current().getNotificationSettings { (settings) in
-			if settings.authorizationStatus == .authorized {
-				DispatchQueue.main.async {
-					NSApplication.shared.registerForRemoteNotifications()
-				}
-			}
-		}
+		// Silent CloudKit pushes don’t need notification permission.
+		NSApplication.shared.registerForRemoteNotifications()
 
 		UNUserNotificationCenter.current().delegate = self
 		UserNotificationManager.shared.start()
@@ -390,8 +383,7 @@ let appName = "NetNewsWire"
 	}
 
 	func userDefaultsDidChange() {
-		updateSortMenuItems()
-		updateGroupByFeedMenuItem()
+		updateColumnLayoutMenuItem()
 
 		if lastRefreshInterval != AppDefaults.shared.refreshInterval {
 			refreshTimer?.update()
@@ -429,18 +421,13 @@ let appName = "NetNewsWire"
 	// MARK: Main Window
 
 	func createMainWindowController() -> MainWindowController {
-		let controller: MainWindowController = windowControllerWithName("UnifiedWindow") as! MainWindowController
+		let controller = MainWindowController()
 
 		if !(mainWindowController?.isOpen ?? false) {
 			mainWindowControllers.removeAll()
 		}
 		mainWindowControllers.append(controller)
 		return controller
-	}
-
-	func windowControllerWithName(_ storyboardName: String) -> NSWindowController {
-		let storyboard = NSStoryboard(name: NSStoryboard.Name(storyboardName), bundle: nil)
-		return storyboard.instantiateInitialController()! as! NSWindowController
 	}
 
 	@discardableResult
@@ -493,10 +480,6 @@ let appName = "NetNewsWire"
 
 		if item.action == #selector(addAppNews(_:)) {
 			return !isDisplayingSheet && !AccountManager.shared.anyAccountHasNetNewsWireNewsSubscription() && !AccountManager.shared.activeAccounts.isEmpty
-		}
-
-		if item.action == #selector(sortByNewestArticleOnTop(_:)) || item.action == #selector(sortByOldestArticleOnTop(_:)) {
-			return mainWindowController?.isOpen ?? false
 		}
 
 		if item.action == #selector(showAddFeedWindow(_:)) || item.action == #selector(showAddFolderWindow(_:)) {
@@ -651,7 +634,7 @@ let appName = "NetNewsWire"
 
 	@IBAction func toggleInspectorWindow(_ sender: Any?) {
 		if inspectorWindowController == nil {
-			inspectorWindowController = (windowControllerWithName("Inspector") as! InspectorWindowController)
+			inspectorWindowController = InspectorWindowController()
 		}
 
 		if inspectorWindowController!.isOpen {
@@ -757,16 +740,8 @@ let appName = "NetNewsWire"
 		aboutWindowController?.window?.makeKeyAndOrderFront(nil)
 	}
 
-	@IBAction func sortByOldestArticleOnTop(_ sender: Any?) {
-		AppDefaults.shared.timelineSortDirection = .orderedAscending
-	}
-
-	@IBAction func sortByNewestArticleOnTop(_ sender: Any?) {
-		AppDefaults.shared.timelineSortDirection = .orderedDescending
-	}
-
-	@IBAction func groupByFeedToggled(_ sender: NSMenuItem) {
-		AppDefaults.shared.timelineGroupByFeed.toggle()
+	@IBAction func toggleColumnLayout(_ sender: Any?) {
+		AppDefaults.shared.useColumnLayout.toggle()
 	}
 
 	func feedURLString(for updater: SPUUpdater) -> String? {
@@ -895,15 +870,8 @@ extension AppDelegate {
 		dinosaurWindowController?.saveState()
 	}
 
-	@MainActor func updateSortMenuItems() {
-		let sortByNewestOnTop = AppDefaults.shared.timelineSortDirection == .orderedDescending
-		sortByNewestArticleOnTopMenuItem.state = sortByNewestOnTop ? .on : .off
-		sortByOldestArticleOnTopMenuItem.state = sortByNewestOnTop ? .off : .on
-	}
-
-	@MainActor func updateGroupByFeedMenuItem() {
-		let groupByFeedEnabled = AppDefaults.shared.timelineGroupByFeed
-		groupArticlesByFeedMenuItem.state = groupByFeedEnabled ? .on : .off
+	@MainActor func updateColumnLayoutMenuItem() {
+		useColumnLayoutMenuItem.state = AppDefaults.shared.useColumnLayout ? .on : .off
 	}
 
 	func importTheme(url: URL) {
