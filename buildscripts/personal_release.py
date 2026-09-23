@@ -41,14 +41,11 @@ def public_key():
 
 def preflight(args):
     problems = []
-    for tool in ("xcodebuild", "xcrun", "gh", "ditto", "codesign", "security", "lipo"):
+    for tool in ("xcodebuild", "xcrun", "gh", "ditto", "codesign", "lipo"):
         if not shutil.which(tool):
             problems.append(f"Install {tool}")
     if problems:
         raise ValueError("\n".join(problems))
-    identities = run("security", "find-identity", "-v", "-p", "codesigning", capture=True)
-    if not re.search(r'"Developer ID Application: [^"\n]+ \(' + TEAM_ID + r'\)"', identities):
-        problems.append(f"Create or import a Developer ID Application certificate for team {TEAM_ID} in Xcode")
     tools = sparkle_bin(args)
     if not all((tools / name).is_file() for name in ("generate_keys", "generate_appcast", "sign_update")):
         problems.append("Run the setup command to resolve Sparkle tools, or pass --sparkle-bin")
@@ -65,7 +62,16 @@ def preflight(args):
         problems.append(f"Store working notarization credentials using: xcrun notarytool store-credentials {args.notary_profile}")
     if problems:
         raise ValueError("\n".join(problems))
-    print("Signing certificate, Sparkle key, and notarization credentials are ready")
+    print("Sparkle key and notarization credentials are ready; Xcode will select the Developer ID certificate during export")
+
+
+def verify_developer_id(app):
+    result = subprocess.run(("codesign", "-dv", "--verbose=4", str(app)), cwd=ROOT,
+                            check=True, text=True, capture_output=True)
+    details = result.stdout + result.stderr
+    if (f"TeamIdentifier={TEAM_ID}" not in details or
+            not re.search(r"^Authority=Developer ID Application: .+ \(" + TEAM_ID + r"\)$", details, re.MULTILINE)):
+        raise ValueError(f"Exported app is not signed with a Developer ID Application certificate for team {TEAM_ID}")
 
 
 def check_build_number(build):
@@ -126,6 +132,7 @@ def package(args):
     if set(architectures) != {"arm64", "x86_64"}:
         raise ValueError("Exported app must support Apple Silicon and Intel")
     run("codesign", "--verify", "--deep", "--strict", str(app))
+    verify_developer_id(app)
     submission = output / "notarization.zip"
     run("ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", str(app), str(submission))
     result = json.loads(run("xcrun", "notarytool", "submit", str(submission),

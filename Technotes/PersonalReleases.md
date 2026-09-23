@@ -7,7 +7,7 @@ Ordinary builds leave updates disabled. `personal_release.py package` enables th
 ## One-time setup
 
 1. Install Python 3.11 or later and GitHub CLI, then run `gh auth login`.
-2. In Xcode Settings > Accounts, select your team and open Manage Certificates. Create or import a **Developer ID Application** certificate for team `T4VMW3KDVX`. It must include its private key. An Apple Development certificate is not sufficient for distribution.
+2. In Xcode Settings > Accounts, select your team. Xcode can use a cloud-managed **Developer ID Application** certificate for team `T4VMW3KDVX` when exporting the archive. A local certificate is also supported. An Apple Development certificate is not sufficient for distribution.
 3. Store notarization credentials interactively. Use an app-specific password when prompted, never a password in the repo or command history:
 
    ```sh
@@ -28,7 +28,7 @@ Ordinary builds leave updates disabled. `personal_release.py package` enables th
    python3 buildscripts/personal_release.py preflight
    ```
 
-The preflight checks the signing identity, public/private Sparkle key match, and notarization credentials. `--sparkle-bin /path/to/Sparkle/bin` can use tools from an existing Xcode build. `--notary-profile NAME` selects another Keychain profile. macOS may ask you to approve Keychain access for `generate_appcast` or `sign_update` when packaging for the first time.
+The preflight checks the public/private Sparkle key match and notarization credentials. Xcode selects the Developer ID certificate during export; the package step verifies the exported app's certificate and team. `--sparkle-bin /path/to/Sparkle/bin` can use tools from an existing Xcode build. `--notary-profile NAME` selects another Keychain profile. macOS may ask you to approve Keychain access for `generate_appcast` or `sign_update` when packaging for the first time.
 
 ## Package and publish
 
