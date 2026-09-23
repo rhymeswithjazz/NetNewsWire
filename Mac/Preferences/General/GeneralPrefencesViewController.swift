@@ -24,6 +24,10 @@ final class GeneralPreferencesViewController: NSViewController {
 		addKeyboardShortcutStyleControls()
 	}
 
+	convenience init() {
+		self.init(nibName: "GeneralPreferencesView", bundle: nil)
+	}
+
 	public override init(nibName nibNameOrNil: NSNib.Name?, bundle nibBundleOrNil: Bundle?) {
 		super.init(nibName: nibNameOrNil, bundle: nibBundleOrNil)
 		commonInit()
