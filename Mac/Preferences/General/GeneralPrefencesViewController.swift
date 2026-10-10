@@ -23,11 +23,6 @@ final class GeneralPreferencesViewController: NSViewController {
 
 	private let keyboardShortcutStylePopup = NSPopUpButton()
 
-	override func viewDidLoad() {
-		super.viewDidLoad()
-		addKeyboardShortcutStyleControls()
-	}
-
 	convenience init() {
 		self.init(nibName: "GeneralPreferencesView", bundle: nil)
 	}
@@ -45,6 +40,7 @@ final class GeneralPreferencesViewController: NSViewController {
 	override func viewDidLoad() {
 		super.viewDidLoad()
 		fixArticleTextSizeBaselineIfNeeded()
+		addKeyboardShortcutStyleControls()
 		view.sizeToFittingSize()
 	}
 
