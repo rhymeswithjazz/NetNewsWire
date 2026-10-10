@@ -11,7 +11,6 @@ import RSCore
 
 @objc final class SidebarKeyboardDelegate: NSObject, KeyboardDelegate {
 
-	@IBOutlet var sidebarViewController: SidebarViewController?
 	private let shortcutSets = KeyboardShortcutSets(resourceName: "SidebarKeyboardShortcuts", context: .sidebar)
 	private var shortcuts: Set<KeyboardShortcut> {
 		shortcutSets.shortcuts(for: AppDefaults.shared.keyboardShortcutStyle)

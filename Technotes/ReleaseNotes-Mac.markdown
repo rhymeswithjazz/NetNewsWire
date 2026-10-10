@@ -1,5 +1,48 @@
 # Mac Release Notes
 
+### 7.2b3 7220 10 Oct 2026 - branch: main tag: mac-7.2b3
+
+Fixed the Settings layout on macOS 15
+Added Spanish translations for Settings and the Sort Articles By menu
+Made each Settings pane size itself to fit, for languages that need more room
+Fixed bug where the sidebar could reopen with no width when it had been collapsed in 7.1.x
+Fixed a memory leak when closing a main window
+Fixed a possible crash when the sidebar or timeline had no visible rows
+Changed sorting by title and by feed to sort numbers by value — “Episode 2” comes before “Episode 10”
+Improved finding feeds in a page by skipping links to X, Twitter, Facebook, and Instagram, and links to files with uppercase extensions or URL queries (such as .PDF or .jpg?w=600)
+Fixed bug where some sites with “youtube” in their names were treated as YouTube
+Fixed Slashdot feed detection (for Slashdot special cases) when the feed comes through a proxy such as FeedBurner
+Changed VoiceOver to say “unread” for sidebar unread counts shown as dots
+
+### 7.2b2 7219 7 Oct 2026 - branch: main tag: mac-7.2b2
+
+Added support for Substack-style footnotes
+Improved CJK text rendering in the article view by adding text-autospace
+Fixed horizontal overflow of WordPress Math blocks and SVGs in the Tiqoe Dark theme
+
+### 7.2b1 7217 6 Oct 2026 - branch: main tag: mac-7.2b1
+
+Added unread count display setting — show the count, show a dot, or hide it — which applies to the Dock icon badge, window title, and sidebar
+Added column layout for the timeline — choose View > Use Column Layout
+Expanded View > Sort Articles By with more options (works with standard and column layouts)
+Made timeline sorting per window instead of one setting for the whole app
+Made the Add Feed sheet start with the folder or account selected in the sidebar
+Changed the message for adding a feed that’s already added to include the name of the folder (or folders)
+Fixed bug where YouTube embeds in articles showed an error instead of playing
+Fixed extra whitespace at the end of Slashdot articles and paragraphs running together
+Fixed parsing of RSS feed titles when a feed contains a textinput section (Slashdot, for instance)
+Added support for the instapaper_ignore class — elements marked with it are now removed from articles
+Changed tabs in pre and code elements in articles to display as four spaces
+Improved finding feeds in a page by skipping links to PDFs, movies, and other files that can’t be feeds
+Changed finding a feed to use the redirected-to URL
+Improved font sizing and fixed superscript orphans in table cells in the Tiqoe Dark theme
+Sped up Today and unread count queries
+Added up to 500 characters of the HTTP error response body to Error Log entries
+
+### 7.1.5 7216 29 Sep 2026 - branch: release/macos-7.1.5 tag: mac-7.1.5
+
+Fixed bug introduced in 7.1.4 where the app wouldn’t ask for notifications permission on launch, which meant no unread count in the Dock icon for new users
+
 ### 7.1.4 7214 20 Sep 2026 - branch: main tag: mac-7.1.4
 
 Same as 7.1.4b3.

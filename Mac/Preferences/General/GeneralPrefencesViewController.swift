@@ -17,6 +17,10 @@ final class GeneralPreferencesViewController: NSViewController {
 	@IBOutlet var articleTextSizePopup: NSPopUpButton!
 	@IBOutlet var articleThemePopup: NSPopUpButton!
 	@IBOutlet var defaultBrowserPopup: NSPopUpButton!
+	@IBOutlet var showUnreadCountsButton: NSButton?
+	@IBOutlet var showUnreadCountDotButton: NSButton?
+	@IBOutlet var hideUnreadCountsButton: NSButton?
+
 	private let keyboardShortcutStylePopup = NSPopUpButton()
 
 	override func viewDidLoad() {
@@ -38,9 +42,14 @@ final class GeneralPreferencesViewController: NSViewController {
 		commonInit()
 	}
 
+	override func viewDidLoad() {
+		super.viewDidLoad()
+		fixArticleTextSizeBaselineIfNeeded()
+		view.sizeToFittingSize()
+	}
+
 	override func viewWillAppear() {
 		super.viewWillAppear()
-		fixArticleTextSizeBaselineIfNeeded()
 		updateUI()
 		updateNotificationSettings()
 	}
@@ -53,6 +62,10 @@ final class GeneralPreferencesViewController: NSViewController {
 
 	@objc func articleThemeNamesDidChangeNotification(_ note: Notification) {
 		updateArticleThemePopup()
+	}
+
+	@objc func handleUnreadCountDisplaySettingDidChange(_ notification: Notification) {
+		updateUnreadCountDisplayButtons()
 	}
 
 	// MARK: - Actions
@@ -68,6 +81,13 @@ final class GeneralPreferencesViewController: NSViewController {
 		}
 		ArticleThemesManager.shared.currentThemeName = menuItem.title
 		updateArticleThemePopup()
+	}
+
+	@IBAction func unreadCountDisplaySettingDidChange(_ sender: NSButton) {
+		guard let unreadCountDisplay = UnreadCountDisplay(rawValue: sender.tag) else {
+			return
+		}
+		AppDefaults.shared.unreadCountDisplay = unreadCountDisplay
 	}
 
 	@IBAction func browserPopUpDidChangeValue(_ sender: Any?) {
@@ -125,12 +145,14 @@ private extension GeneralPreferencesViewController {
 	func commonInit() {
 		NotificationCenter.default.addObserver(self, selector: #selector(applicationWillBecomeActive(_:)), name: NSApplication.willBecomeActiveNotification, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(articleThemeNamesDidChangeNotification(_:)), name: .ArticleThemeNamesDidChangeNotification, object: nil)
+		NotificationCenter.default.addObserver(self, selector: #selector(handleUnreadCountDisplaySettingDidChange(_:)), name: .unreadCountDisplaySettingDidChange, object: nil)
 	}
 
 	func updateUI() {
 		updateArticleThemePopup()
 		updateBrowserPopup()
 		keyboardShortcutStylePopup.selectItem(withTag: AppDefaults.shared.keyboardShortcutStyle.rawValue)
+		updateUnreadCountDisplayButtons()
 	}
 
 	func addKeyboardShortcutStyleControls() {
@@ -161,6 +183,13 @@ private extension GeneralPreferencesViewController {
 			container.bottomAnchor.constraint(equalTo: keyboardShortcutStylePopup.bottomAnchor, constant: 4)
 		])
 		preferredContentSize = NSSize(width: view.frame.width, height: view.frame.height + 40)
+	}
+
+	func updateUnreadCountDisplayButtons() {
+		let selectedTag = AppDefaults.shared.unreadCountDisplay.rawValue
+		for case let button? in [showUnreadCountsButton, showUnreadCountDotButton, hideUnreadCountsButton] {
+			button.state = button.tag == selectedTag ? .on : .off
+		}
 	}
 
 	func updateArticleThemePopup() {
@@ -245,19 +274,6 @@ private extension GeneralPreferencesViewController {
 					NSApplication.shared.registerForRemoteNotifications()
 				}
 			}
-		}
-	}
-
-	func showNotificationsDeniedError() {
-		let updateAlert = NSAlert()
-		updateAlert.alertStyle = .informational
-		updateAlert.messageText = NSLocalizedString("Enable Notifications", comment: "Notifications")
-		updateAlert.informativeText = NSLocalizedString("To enable notifications, open Notifications in System Preferences, then find NetNewsWire in the list.", comment: "To enable notifications, open Notifications in System Preferences, then find NetNewsWire in the list.")
-		updateAlert.addButton(withTitle: NSLocalizedString("Open System Preferences", comment: "Open System Preferences"))
-		updateAlert.addButton(withTitle: NSLocalizedString("Close", comment: "Close"))
-		let modalResponse = updateAlert.runModal()
-		if modalResponse == .alertFirstButtonReturn {
-			NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.notifications")!)
 		}
 	}
 
