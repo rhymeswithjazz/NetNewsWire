@@ -57,7 +57,7 @@ Never replace the ZIP or appcast of a published build. Publish a higher build nu
 
 ## First installation and update test
 
-Install the first notarized personal build manually on each Mac. Development builds have updates disabled and cannot bootstrap themselves. Once a personal release is installed, subsequent published builds can update through Sparkle. Beta releases are offered only when Settings > Advanced > Include test builds is enabled.
+Install the first notarized personal build manually on each Mac. Development builds have updates disabled and cannot bootstrap themselves. Once a personal release is installed, subsequent published builds can update through Sparkle. Beta releases are offered only when Settings > Advanced > Test builds is selected.
 
 Before relying on automatic updates:
 

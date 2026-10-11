@@ -95,6 +95,34 @@ class PersonalReleaseTests(unittest.TestCase):
                     export_notarized_archive(output / "App.xcarchive", output)
                 sleep.assert_not_called()
 
+    def test_transient_upload_failure_retries_without_rebuilding(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            attempts = []
+            def upload(*args, **kwargs):
+                attempts.append(args)
+                if len(attempts) == 1:
+                    kwargs["log"].write_text("error: exportArchive The network connection was lost.\n")
+                    raise subprocess.CalledProcessError(70, args)
+            with patch("personal_release.run", side_effect=upload), \
+                 patch("personal_release.subprocess.run", return_value=subprocess.CompletedProcess([], 0, "", "")), \
+                 patch("personal_release.time.sleep") as sleep:
+                export_notarized_archive(output / "App.xcarchive", output)
+                self.assertEqual(len(attempts), 2)
+                sleep.assert_called_once_with(10)
+
+    def test_upload_auth_failure_does_not_retry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            def upload(*args, **kwargs):
+                kwargs["log"].write_text("error: exportArchive Authentication failed.\n")
+                raise subprocess.CalledProcessError(70, args)
+            with patch("personal_release.run", side_effect=upload), \
+                 patch("personal_release.time.sleep") as sleep:
+                with self.assertRaises(subprocess.CalledProcessError):
+                    export_notarized_archive(output / "App.xcarchive", output)
+                sleep.assert_not_called()
+
     def test_changed_artifact_is_not_uploaded(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)

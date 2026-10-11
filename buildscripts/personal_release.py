@@ -107,8 +107,23 @@ def export_notarized_archive(archive, output):
         plistlib.dump({"method": "developer-id", "teamID": TEAM_ID,
                       "signingStyle": "automatic", "destination": "upload"}, stream)
     print("Signing and submitting to Apple using the Xcode account…", flush=True)
-    run("xcodebuild", "-exportArchive", "-archivePath", str(archive),
-        "-exportOptionsPlist", str(options), "-allowProvisioningUpdates", log=output / "notarization.log")
+    log = output / "notarization.log"
+    for attempt in range(3):
+        offset = log.stat().st_size if log.exists() else 0
+        try:
+            run("xcodebuild", "-exportArchive", "-archivePath", str(archive),
+                "-exportOptionsPlist", str(options), "-allowProvisioningUpdates", log=log)
+            break
+        except subprocess.CalledProcessError:
+            with log.open("rb") as stream:
+                stream.seek(offset)
+                details = stream.read().decode(errors="replace")
+            transient = any(message in details for message in
+                            ("The network connection was lost", "The request timed out", "Could not connect to the server"))
+            if not transient or attempt == 2:
+                raise
+            print("Apple upload hit a network error; retrying in 10 seconds…", flush=True)
+            time.sleep(10)
     deadline = time.monotonic() + 1200
     while True:
         result = subprocess.run(("xcodebuild", "-exportNotarizedApp", "-archivePath", str(archive),
@@ -149,6 +164,12 @@ def package(args):
         f"CURRENT_PROJECT_VERSION={args.build}", f"MARKETING_VERSION={args.version}",
         "FORK_SOFTWARE_UPDATES_ENABLED=YES", "archive", log=output / "build.log")
     run("bash", "buildscripts/fail_on_warnings.sh", str(output / "build.log"))
+    finish_package(args, output, commit)
+
+
+def finish_package(args, output, commit):
+    """Export and sign an existing archive whose source commit is already recorded."""
+    archive = output / "NetNewsWire.xcarchive"
     exported = output / "export"
     if args.notary_profile:
         export_options = output / "ExportOptions.plist"
