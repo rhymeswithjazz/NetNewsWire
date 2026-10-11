@@ -78,6 +78,16 @@ class PersonalAppcastTests(unittest.TestCase):
         ], [{"draft": False, "tag_name": "personal-8002"}]]):
             self.assertEqual([release["tag_name"] for release in published_releases()], ["personal-8002"])
 
+    def test_manual_builds_count_for_numbering_but_not_the_feed(self):
+        with patch("personal_appcast.gh_json", return_value=[[
+            {"draft": False, "tag_name": "manual-8005"},
+            {"draft": False, "tag_name": "personal-8002"},
+            {"draft": True, "tag_name": "manual-8006"},
+        ]]):
+            self.assertEqual([r["tag_name"] for r in published_releases()], ["personal-8002"])
+            self.assertEqual([r["tag_name"] for r in published_releases(include_manual=True)],
+                             ["manual-8005", "personal-8002"])
+
 
 if __name__ == "__main__":
     unittest.main()

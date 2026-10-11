@@ -19,10 +19,11 @@ def gh_json(*args):
     return json.loads(subprocess.check_output(["gh", *args], text=True))
 
 
-def published_releases():
+def published_releases(include_manual=False):
     pages = gh_json("api", "--paginate", "--slurp", f"repos/{REPOSITORY}/releases?per_page=100")
+    prefixes = ("personal-", "manual-") if include_manual else ("personal-",)
     return [release for page in pages for release in page
-            if not release["draft"] and release["tag_name"].startswith("personal-")]
+            if not release["draft"] and release["tag_name"].startswith(prefixes)]
 
 
 def read_item(xml, release):
