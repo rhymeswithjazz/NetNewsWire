@@ -52,7 +52,7 @@ let appName = "NetNewsWire"
 	private var isShutDownSyncDone = false
 
 	@IBOutlet var debugMenuItem: NSMenuItem!
-	@IBOutlet var useColumnLayoutMenuItem: NSMenuItem!
+	@IBOutlet var useColumnLayoutMenuItem: NSMenuItem?
 	@IBOutlet var checkForUpdatesMenuItem: NSMenuItem!
 
 	var unreadCount = 0 {
@@ -118,6 +118,7 @@ let appName = "NetNewsWire"
 		AccountManager.shared.start()
 
 		NotificationCenter.default.addObserver(self, selector: #selector(unreadCountDidChange(_:)), name: .UnreadCountDidChange, object: AccountManager.shared)
+		NotificationCenter.default.addObserver(self, selector: #selector(handleUnreadCountDisplaySettingDidChange(_:)), name: .unreadCountDisplaySettingDidChange, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(inspectableObjectsDidChange(_:)), name: .InspectableObjectsDidChange, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(importDownloadedTheme(_:)), name: .didEndDownloadingTheme, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(themeImportError(_:)), name: .didFailToImportThemeWithError, object: nil)
@@ -253,6 +254,9 @@ let appName = "NetNewsWire"
 		// Silent CloudKit pushes don’t need notification permission.
 		NSApplication.shared.registerForRemoteNotifications()
 
+		// Badging the Dock icon needs this permission — it’s not just for alerts.
+		UNUserNotificationCenter.current().requestAuthorization(options: [.badge, .sound, .alert]) { _, _ in }
+
 		UNUserNotificationCenter.current().delegate = self
 		UserNotificationManager.shared.start()
 
@@ -360,6 +364,10 @@ let appName = "NetNewsWire"
 	@objc func unreadCountDidChange(_ note: Notification) {
 		assert(note.object is AccountManager)
 		unreadCount = AccountManager.shared.unreadCount
+	}
+
+	@objc func handleUnreadCountDisplaySettingDidChange(_ notification: Notification) {
+		updateDockBadge()
 	}
 
 	@objc func feedSettingDidChange(_ note: Notification) {
@@ -539,11 +547,20 @@ let appName = "NetNewsWire"
 		showAddFeedSheetOnWindow(windowController.window!, urlString: urlString, name: name, account: account, folder: folder)
 	}
 
+	private func addFeedContainerFromSidebarSelection() -> Container? {
+		guard let container = mainWindowController?.selectedContainerInSidebar() else {
+			return nil
+		}
+		guard let account = container as? Account else {
+			return container
+		}
+		return AddFeedDefaultContainer.substituteContainerIfNeeded(account: account)
+	}
+
 	// MARK: - Dock Badge
 	@objc func updateDockBadge() {
 		Task { @MainActor in
-			let label = unreadCount > 0 ? "\(unreadCount)" : ""
-			NSApplication.shared.dockTile.badgeLabel = label
+			NSApplication.shared.dockTile.badgeLabel = AppDefaults.shared.unreadCountDisplay.text(for: unreadCount) ?? ""
 		}
 	}
 
@@ -605,7 +622,8 @@ let appName = "NetNewsWire"
 	}
 
 	@IBAction func showAddFeedWindow(_ sender: Any?) {
-		addFeed(nil)
+		let container = addFeedContainerFromSidebarSelection()
+		addFeed(nil, account: container?.account, folder: container as? Folder)
 	}
 
 	@IBAction func showAddFolderWindow(_ sender: Any?) {
@@ -871,7 +889,7 @@ extension AppDelegate {
 	}
 
 	@MainActor func updateColumnLayoutMenuItem() {
-		useColumnLayoutMenuItem.state = AppDefaults.shared.useColumnLayout ? .on : .off
+		useColumnLayoutMenuItem?.state = AppDefaults.shared.useColumnLayout ? .on : .off
 	}
 
 	func importTheme(url: URL) {

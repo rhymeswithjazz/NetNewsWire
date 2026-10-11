@@ -13,7 +13,6 @@ import RSCore
 
 @objc final class TimelineKeyboardDelegate: NSObject, KeyboardDelegate {
 
-	@IBOutlet var timelineViewController: TimelineViewController?
 	private let shortcutSets = KeyboardShortcutSets(resourceName: "TimelineKeyboardShortcuts", context: .timeline)
 	private var shortcuts: Set<KeyboardShortcut> {
 		shortcutSets.shortcuts(for: AppDefaults.shared.keyboardShortcutStyle)

@@ -111,6 +111,7 @@ final class MainWindowController: NSWindowController, NSUserInterfaceValidations
 		NotificationCenter.default.addObserver(self, selector: #selector(refreshProgressDidChange(_:)), name: .progressInfoDidChange, object: CombinedRefreshProgress.shared)
 
 		NotificationCenter.default.addObserver(self, selector: #selector(unreadCountDidChange(_:)), name: .UnreadCountDidChange, object: nil)
+		NotificationCenter.default.addObserver(self, selector: #selector(handleUnreadCountDisplaySettingDidChange(_:)), name: .unreadCountDisplaySettingDidChange, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(displayNameDidChange(_:)), name: .DisplayNameDidChange, object: nil)
 
 		NotificationCenter.default.addObserver(self, selector: #selector(articleThemeNamesDidChangeNotification(_:)), name: .ArticleThemeNamesDidChangeNotification, object: nil)
@@ -126,6 +127,10 @@ final class MainWindowController: NSWindowController, NSUserInterfaceValidations
 
 	func selectedObjectsInSidebar() -> [AnyObject]? {
 		return sidebarViewController?.selectedObjects
+	}
+
+	func selectedContainerInSidebar() -> Container? {
+		sidebarViewController?.selectedContainer
 	}
 
 	func selectFeedInSidebar(_ feed: Feed) {
@@ -192,6 +197,10 @@ final class MainWindowController: NSWindowController, NSUserInterfaceValidations
 
 	@objc func unreadCountDidChange(_ note: Notification) {
 		CoalescingQueue.standard.add(self, #selector(coalescedUpdateWindowTitle))
+	}
+
+	@objc func handleUnreadCountDisplaySettingDidChange(_ notification: Notification) {
+		updateWindowTitle()
 	}
 
 	@objc func coalescedUpdateWindowTitle() {
@@ -1086,7 +1095,9 @@ private extension MainWindowController {
 		case .standard:
 			newSplitViewController = makeStandardSplitViewController(sidebar: sidebarViewController, timeline: timelineContainerViewController, detail: detailViewController)
 		case .column:
-			newSplitViewController = makeColumnLayoutSplitViewController(sidebar: sidebarViewController, timeline: timelineContainerViewController, detail: detailViewController)
+			let columnLayoutSplitViewControllers = makeColumnLayoutSplitViewControllers(sidebar: sidebarViewController, timeline: timelineContainerViewController, detail: detailViewController)
+			newSplitViewController = columnLayoutSplitViewControllers.split
+			contentSplitViewController = columnLayoutSplitViewControllers.content
 		}
 		splitViewController = newSplitViewController
 		timelineLayout = layout
@@ -1169,7 +1180,8 @@ private extension MainWindowController {
 		return splitViewController
 	}
 
-	func makeColumnLayoutSplitViewController(sidebar: SidebarViewController, timeline: TimelineContainerViewController, detail: DetailViewController) -> NSSplitViewController {
+	/// Returns the outer split (sidebar and content) and the content split (timeline above detail) it contains.
+	func makeColumnLayoutSplitViewControllers(sidebar: SidebarViewController, timeline: TimelineContainerViewController, detail: DetailViewController) -> (split: NSSplitViewController, content: NSSplitViewController) {
 		let contentSplitViewController = makeEmptySplitViewController(isVertical: false, splitView: ColumnLayoutSplitView())
 		contentSplitViewController.splitView.dividerStyle = .paneSplitter
 
@@ -1183,7 +1195,6 @@ private extension MainWindowController {
 		detailItem.canCollapse = false
 
 		contentSplitViewController.splitViewItems = [timelineItem, detailItem]
-		self.contentSplitViewController = contentSplitViewController
 
 		let splitViewController = makeEmptySplitViewController(isVertical: true)
 
@@ -1193,14 +1204,13 @@ private extension MainWindowController {
 		let contentItem = NSSplitViewItem(viewController: contentSplitViewController)
 		if #available(macOS 26.0, *) {
 			contentItem.automaticallyAdjustsSafeAreaInsets = true
-		}
-		if #unavailable(macOS 26.0) {
+		} else {
 			contentItem.titlebarSeparatorStyle = .line
 		}
 
 		splitViewController.splitViewItems = [sidebarItem, contentItem]
 		sidebar.splitViewItem = sidebarItem
-		return splitViewController
+		return (splitViewController, contentSplitViewController)
 	}
 
 	func makeEmptySplitViewController(isVertical: Bool, splitView: NSSplitView = NSSplitView()) -> NSSplitViewController {
@@ -1316,17 +1326,19 @@ private extension MainWindowController {
 			}
 			let sidebarWidth = CGFloat(widths[0])
 			let timelineWidth = CGFloat(widths[1])
-			splitView.setPosition(sidebarWidth, ofDividerAt: 0)
+			// The sidebar is positioned expanded here and collapsed by the caller afterward. A zero sidebar width
+			// comes from state saved before the collapsed width was kept (7.1.x) — keep the default width.
+			if sidebarWidth > 0 {
+				splitView.setPosition(sidebarWidth, ofDividerAt: 0)
+			}
 			// A zero timeline width means the standard layout has never been laid out — leave it to the holding priorities.
-			// The sidebar is positioned expanded here and collapsed by the caller afterward, so a zero width only
-			// comes from state saved before the collapsed width was kept.
 			if timelineWidth > 0 {
 				let secondDividerPosition = sidebarWidth > 0 ? sidebarWidth + splitView.dividerThickness + timelineWidth : timelineWidth
 				splitView.setPosition(secondDividerPosition, ofDividerAt: 1)
 			}
 
 		case .column:
-			if widths.count == 3 {
+			if widths.count == 3 && widths[0] > 0 {
 				splitView.setPosition(CGFloat(widths[0]), ofDividerAt: 0)
 			}
 			guard let contentSplitView = contentSplitViewController?.splitView else {
@@ -1661,6 +1673,10 @@ private extension MainWindowController {
 		}
 
 		func setSubtitle(_ count: Int) {
+			guard AppDefaults.shared.unreadCountDisplay == .count else {
+				window?.subtitle = ""
+				return
+			}
 			let localizedLabel = NSLocalizedString("%d unread", comment: "Unread")
 			let formattedLabel = NSString.localizedStringWithFormat(localizedLabel as NSString, count)
 			window?.subtitle = formattedLabel as String
