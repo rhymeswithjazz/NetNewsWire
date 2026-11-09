@@ -54,10 +54,10 @@ enum KeyboardType: String, Sendable {
 			break
 		}
 
-		let styledGlobalEntries = KeyboardShortcutProfile.entries(globalEntries, style: AppDefaults.shared.keyboardShortcutStyle, context: .global)
+		let styledGlobalEntries = KeyboardShortcutProfile.entries(globalEntries, style: AppDefaults.keyboardShortcutStyle, context: .global)
 		keyCommands.append(contentsOf: styledGlobalEntries.compactMap { KeyboardManager.createKeyCommand(keyEntry: $0) })
 
-		let styledSpecificEntries = KeyboardShortcutProfile.entries(specificEntries, style: AppDefaults.shared.keyboardShortcutStyle, context: type.context)
+		let styledSpecificEntries = KeyboardShortcutProfile.entries(specificEntries, style: AppDefaults.keyboardShortcutStyle, context: type.context)
 		keyCommands.append(contentsOf: styledSpecificEntries.compactMap { KeyboardManager.createKeyCommand(keyEntry: $0) })
 		return keyCommands
 	}
@@ -65,9 +65,7 @@ enum KeyboardType: String, Sendable {
 	static func createKeyCommand(title: String, action: String, input: String, modifiers: UIKeyModifierFlags) -> UIKeyCommand {
 		let selector = NSSelectorFromString(action)
 		let keyCommand = UIKeyCommand(title: title, image: nil, action: selector, input: input, modifierFlags: modifiers, propertyList: nil, alternates: [], discoverabilityTitle: nil, attributes: [], state: .on)
-		if #available(iOS 15.0, *) {
-			keyCommand.wantsPriorityOverSystemBehavior = true
-		}
+		keyCommand.wantsPriorityOverSystemBehavior = true
 		return keyCommand
 	}
 }
@@ -83,9 +81,7 @@ private extension KeyboardManager {
 			return KeyboardManager.createKeyCommand(title: title, action: action, input: input, modifiers: modifiers)
 		} else {
 			let keyCommand = UIKeyCommand(input: input, modifierFlags: modifiers, action: NSSelectorFromString(action))
-			if #available(iOS 15.0, *) {
-				keyCommand.wantsPriorityOverSystemBehavior = true
-			}
+			keyCommand.wantsPriorityOverSystemBehavior = true
 			return keyCommand
 		}
 	}

@@ -1,5 +1,68 @@
 # Mac Release Notes
 
+### 7.3b6 7233 9 Nov 2026 - branch: main tag: mac-7.3b6
+
+Added a Grayscale icons setting to Settings > Appearance — for feed icons and author avatars (article thumbnails stay in color)
+Made Feed Name and Date Above Title the default in the timeline
+Put the date above the thumbnail when small thumbnails and Feed Name and Date Above Title are both on
+Made timeline rows always show the author or feed name, instead of leaving that spot empty
+Limited articles with no title to four lines when rows show the full title with no preview
+Added [[primary_media]] and [[enclosures]] tags for themes — primary_media is the article’s main image, video, or audio from the feed, when the article’s HTML doesn’t already include it
+Allowed themes to include a template7.3.html file, which is used in 7.3 and later instead of template.html
+Updated the built-in themes to use [[primary_media]] and [[enclosures]]
+Skipped enclosure images that are the same as the feed image (as with Letters from an American), so they don’t become redundant thumbnails or primary images
+Skipped primary images for microblog-style (Mastodon, etc.) posts — their images appear with the enclosures at the bottom
+Used media:thumbnail as a fallback when an article has no other images (as with Wired)
+Picked the widest image when Guardian image enclosures differ only by width
+Fixed duplicate images in Engadget articles
+Fixed embedded YouTube videos (and other iframes) not loading on sites that use Optimole lazy loading
+Fixed blog.rust-lang.org articles — JavaScript is turned off for them, and their noscript content is shown
+Used an item’s only Gravatar as its author’s avatar, even when the author name is a username
+
+### 7.3b5 7232 7 Nov 2026 - branch: main tag: mac-7.3b5
+
+Added an Appearance settings pane — appearance (system, light, or dark), sidebar text size, sidebar icons, which smart feeds to show (Today, All Unread, Starred), and the article theme and text size (moved from General)
+Added a Timeline settings pane — text size, feed icons (automatic, always, or never), feed icon size, thumbnails, rows (full title with no preview, or title and preview in 1 to 6 lines), separators, fading read articles, and showing the feed name and date above the title
+Moved the Thumbnails setting from the View menu to Settings > Timeline
+Made rows fit their content (variable row heights) in timeline
+Made separators a regular setting (it was a hidden preference) — your existing choice carries over
+Gave the status bar a crisper top edge, a deeper gradient, and an etched, higher-contrast divider grip
+Made the main window’s split view dividers a little darker in light mode
+
+### 7.3b4 7229 6 Nov 2026 - branch: main tag: mac-7.3b4
+
+Made small thumbnails fill the space (aspect fill) — images are cropped from the sides and bottom, never the top, so faces and other important parts are more likely to stay in view
+Gave large thumbnails rounded corners, to match small thumbnails and feed icons
+Removed the background color behind thumbnails, and added a faint placeholder color that shows until a thumbnail loads
+Fixed footnote popover positioning near the edge of the article view and after resizing the window on Duo
+Fixed bug where the last article in the timeline had a separator below it (when separators are turned on via the hidden preference)
+
+### 7.3b3 7227 3 Nov 2026 - branch: main tag: mac-7.3b3
+
+Added support for enclosures and Media RSS
+Added enclosures to the article view (at the bottom) — you can see images from Mastodon feeds, play an MP3, etc.
+Made YouTube enclosures play in the privacy-enhanced YouTube player (youtube-nocookie.com)
+Made the article view show plain text or media:description when an article has no HTML content
+Made image downloading kinder to servers — honors Retry-After, waits after errors, and limits downloads to two at a time per host
+Reorganized the View menu into sections — sidebar, timeline, status bar, and toolbar
+Added article thumbnails to the timeline — choose View > Thumbnails to pick large or small. Default is none. (Works in standard layout but not column layout)
+
+### 7.3b2 7226 22 Oct 2026 - branch: main tag: mac-7.3b2
+
+Fixed a crash at midnight when the status bar is showing
+Added the last-refresh time to the status bar, and made it the default
+Changed the status bar to use a shorter date format
+Added Refresh and Show/Hide Sidebar commands to the status bar gear menu
+Made clicking the progress indicator in the status bar open the Current Activity window (as in NetNewsWire of Yore)
+Fixed bug where the status bar divider might drift from the split view divider
+Fixed inline footnotes in FreshRSS articles
+Added netnewswire, feed, feeds, and x-netnewswire-feed as allowed link schemes in the article view — so clicking a link to install a theme (for instance) works
+
+### 7.3b1 7225 20 Oct 2026 - branch: main tag: mac-7.3b1
+
+Restored the status bar from NetNewsWire of Yore (NetNewsWire 1-3). Show and hide it via the View menu
+Fixed extra vertical space in MacRumors articles
+
 ### 7.2.1 7224 19 Oct 2026 - branch: main tag: mac-7.2.1
 
 Same as 7.2.1b1 — just bumped the version.

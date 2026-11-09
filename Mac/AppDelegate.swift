@@ -37,7 +37,7 @@ let appName = "NetNewsWire"
 	}
 
 	private var refreshTimer: AccountRefreshTimer?
-	private var lastRefreshInterval = AppDefaults.shared.refreshInterval
+	private var lastRefreshInterval = AppDefaults.refreshInterval
 
 	private var shuttingDown = false {
 		didSet {
@@ -53,6 +53,8 @@ let appName = "NetNewsWire"
 
 	@IBOutlet var debugMenuItem: NSMenuItem!
 	@IBOutlet var useColumnLayoutMenuItem: NSMenuItem?
+	@IBOutlet var showStatusBarMenuItem: NSMenuItem?
+	@IBOutlet var showStatusBarThemeMenuMenuItem: NSMenuItem?
 	@IBOutlet var checkForUpdatesMenuItem: NSMenuItem!
 
 	var unreadCount = 0 {
@@ -119,6 +121,7 @@ let appName = "NetNewsWire"
 
 		NotificationCenter.default.addObserver(self, selector: #selector(unreadCountDidChange(_:)), name: .UnreadCountDidChange, object: AccountManager.shared)
 		NotificationCenter.default.addObserver(self, selector: #selector(handleUnreadCountDisplaySettingDidChange(_:)), name: .unreadCountDisplaySettingDidChange, object: nil)
+		NotificationCenter.default.addObserver(self, selector: #selector(handleUserInterfaceColorPaletteDidUpdate(_:)), name: .userInterfaceColorPaletteDidUpdate, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(inspectableObjectsDidChange(_:)), name: .InspectableObjectsDidChange, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(importDownloadedTheme(_:)), name: .didEndDownloadingTheme, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(themeImportError(_:)), name: .didFailToImportThemeWithError, object: nil)
@@ -142,23 +145,11 @@ let appName = "NetNewsWire"
 
 	func applicationWillFinishLaunching(_ notification: Notification) {
 		FaviconGenerator.templateImage = Assets.Images.faviconTemplate
+		applyUserInterfaceColorPalette()
 
 		installAppleEventHandlers()
 
 		CacheCleaner.purgeIfNecessary()
-
-		// Try to establish a cache in the Caches folder, but if it fails for some reason fall back to a temporary dir
-		let cacheFolder: String
-		if let userCacheFolder = try? FileManager.default.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: false).path {
-			cacheFolder = userCacheFolder
-		} else {
-			let bundleIdentifier = (Bundle.main.infoDictionary!["CFBundleIdentifier"]! as! String)
-			cacheFolder = (NSTemporaryDirectory() as NSString).appendingPathComponent(bundleIdentifier)
-		}
-
-		let imagesFolder = (cacheFolder as NSString).appendingPathComponent("Images")
-		let imagesFolderURL = URL(fileURLWithPath: imagesFolder)
-		try! FileManager.default.createDirectory(at: imagesFolderURL, withIntermediateDirectories: true, attributes: nil)
 	}
 
 	func applicationDidFinishLaunching(_ note: Notification) {
@@ -185,8 +176,8 @@ let appName = "NetNewsWire"
 			}
 		}
 
-		AppDefaults.shared.registerDefaults()
-		let isFirstRun = AppDefaults.shared.isFirstRun
+		AppDefaults.registerDefaults()
+		let isFirstRun = AppDefaults.isFirstRun
 		if isFirstRun {
 			Self.logger.debug("Is first run.")
 		}
@@ -197,6 +188,7 @@ let appName = "NetNewsWire"
 		}
 
 		updateColumnLayoutMenuItem()
+		updateStatusBarMenuItems()
 
 		if mainWindowController == nil {
 			let mainWindowController = createAndShowMainWindow()
@@ -207,7 +199,6 @@ let appName = "NetNewsWire"
 			mainWindowController?.window?.center()
 		}
 
-		NotificationCenter.default.addObserver(self, selector: #selector(feedSettingDidChange(_:)), name: .feedSettingDidChange, object: nil)
 		NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { _ in
 			MainActor.assumeIsolated {
 				self.userDefaultsDidChange()
@@ -264,7 +255,7 @@ let appName = "NetNewsWire"
 		refreshTimer!.update()
 		ArticleStatusSyncTimer.shared.update()
 		#else
-		if AppDefaults.shared.suppressSyncOnLaunch {
+		if AppDefaults.suppressSyncOnLaunch {
 			refreshTimer!.update()
 			ArticleStatusSyncTimer.shared.update()
 		} else {
@@ -275,7 +266,7 @@ let appName = "NetNewsWire"
 		}
 		#endif
 
-		if !AppDefaults.shared.showDebugMenu {
+		if !AppDefaults.showDebugMenu {
 			debugMenuItem.menu?.removeItem(debugMenuItem)
 		}
 
@@ -370,15 +361,8 @@ let appName = "NetNewsWire"
 		updateDockBadge()
 	}
 
-	@objc func feedSettingDidChange(_ note: Notification) {
-		MainActor.assumeIsolated {
-			guard let feed = note.object as? Feed, let key = note.userInfo?[Feed.SettingUserInfoKey] as? Feed.SettingKey else {
-				return
-			}
-			if key == .homePageURL || key == .faviconURL {
-				_ = FaviconDownloader.shared.favicon(for: feed)
-			}
-		}
+	@objc func handleUserInterfaceColorPaletteDidUpdate(_ notification: Notification) {
+		applyUserInterfaceColorPalette()
 	}
 
 	@objc func inspectableObjectsDidChange(_ note: Notification) {
@@ -392,10 +376,11 @@ let appName = "NetNewsWire"
 
 	func userDefaultsDidChange() {
 		updateColumnLayoutMenuItem()
+		updateStatusBarMenuItems()
 
-		if lastRefreshInterval != AppDefaults.shared.refreshInterval {
+		if lastRefreshInterval != AppDefaults.refreshInterval {
 			refreshTimer?.update()
-			lastRefreshInterval = AppDefaults.shared.refreshInterval
+			lastRefreshInterval = AppDefaults.refreshInterval
 		}
 
 		updateDockBadge()
@@ -479,7 +464,7 @@ let appName = "NetNewsWire"
 		let isDisplayingSheet = mainWindowController?.isDisplayingSheet ?? false
 
 		if item.action == #selector(refreshAll(_:)) {
-			return !AccountManager.shared.refreshInProgress && !AccountManager.shared.activeAccounts.isEmpty
+			return AccountManager.shared.canRefresh
 		}
 
 		if item.action == #selector(importOPMLFromFile(_:)) {
@@ -498,8 +483,16 @@ let appName = "NetNewsWire"
 			return AccountManager.shared.hasiCloudAccount
 		}
 
+		if item.action == #selector(toggleStatusBarThemeMenu(_:)) {
+			return AppDefaults.showStatusBar
+		}
+
 		if item.action == #selector(toggleWebInspectorEnabled(_:)) {
-			(item as! NSMenuItem).state = AppDefaults.shared.webInspectorEnabled ? .on : .off
+			(item as! NSMenuItem).state = AppDefaults.webInspectorEnabled ? .on : .off
+		}
+
+		if let isShown = SidebarViewController.smartFeedIsShown(forGoToAction: item.action) {
+			return isShown
 		}
 
 		return true
@@ -560,7 +553,7 @@ let appName = "NetNewsWire"
 	// MARK: - Dock Badge
 	@objc func updateDockBadge() {
 		Task { @MainActor in
-			NSApplication.shared.dockTile.badgeLabel = AppDefaults.shared.unreadCountDisplay.text(for: unreadCount) ?? ""
+			NSApplication.shared.dockTile.badgeLabel = AppDefaults.unreadCountDisplay.text(for: unreadCount) ?? ""
 		}
 	}
 
@@ -643,7 +636,7 @@ let appName = "NetNewsWire"
 			}
 
 		}
-		let resourceName = AppDefaults.shared.keyboardShortcutStyle == .vim ? "KeyboardShortcuts-Vim" : "KeyboardShortcuts"
+		let resourceName = AppDefaults.keyboardShortcutStyle == .vim ? "KeyboardShortcuts-Vim" : "KeyboardShortcuts"
 		let htmlFile = Bundle(for: type(of: self)).path(forResource: resourceName, ofType: "html")!
 		keyboardShortcutsWindowController?.displayContents(of: htmlFile)
 
@@ -759,7 +752,15 @@ let appName = "NetNewsWire"
 	}
 
 	@IBAction func toggleColumnLayout(_ sender: Any?) {
-		AppDefaults.shared.useColumnLayout.toggle()
+		AppDefaults.useColumnLayout.toggle()
+	}
+
+	@IBAction func toggleStatusBar(_ sender: Any?) {
+		AppDefaults.showStatusBar.toggle()
+	}
+
+	@IBAction func toggleStatusBarThemeMenu(_ sender: Any?) {
+		AppDefaults.showStatusBarThemeMenu.toggle()
 	}
 
 	func feedURLString(for updater: SPUUpdater) -> String? {
@@ -819,13 +820,13 @@ extension AppDelegate {
 	}
 
 	@IBAction func toggleWebInspectorEnabled(_ sender: Any?) {
-		let newValue = !AppDefaults.shared.webInspectorEnabled
-		AppDefaults.shared.webInspectorEnabled = newValue
+		let newValue = !AppDefaults.webInspectorEnabled
+		AppDefaults.webInspectorEnabled = newValue
 
 			// An attached inspector can display incorrectly on certain setups (like mine); default to displaying in a separate window,
 			// and reset the default to a separate window when the preference is toggled off and on again in case the inspector is
 			// accidentally reattached.
-		AppDefaults.shared.webInspectorStartsAttached = false
+		AppDefaults.webInspectorStartsAttached = false
 			NotificationCenter.default.post(name: .WebInspectorEnabledDidChange, object: newValue)
 	}
 
@@ -889,7 +890,20 @@ extension AppDelegate {
 	}
 
 	@MainActor func updateColumnLayoutMenuItem() {
-		useColumnLayoutMenuItem?.state = AppDefaults.shared.useColumnLayout ? .on : .off
+		useColumnLayoutMenuItem?.state = AppDefaults.useColumnLayout ? .on : .off
+	}
+
+	@MainActor func updateStatusBarMenuItems() {
+		if AppDefaults.showStatusBar {
+			showStatusBarMenuItem?.title = NSLocalizedString("Hide Status Bar", comment: "Command")
+		} else {
+			showStatusBarMenuItem?.title = NSLocalizedString("Show Status Bar", comment: "Command")
+		}
+		if AppDefaults.showStatusBarThemeMenu {
+			showStatusBarThemeMenuMenuItem?.title = NSLocalizedString("Hide Theme Menu in Status Bar", comment: "Command")
+		} else {
+			showStatusBarThemeMenuMenuItem?.title = NSLocalizedString("Show Theme Menu in Status Bar", comment: "Command")
+		}
 	}
 
 	func importTheme(url: URL) {
@@ -1061,6 +1075,17 @@ extension AppDelegate: NSWindowRestoration {
 // Handle Notification Actions
 
 private extension AppDelegate {
+
+	func applyUserInterfaceColorPalette() {
+		switch AppDefaults.userInterfaceColorPalette {
+		case .automatic:
+			NSApp.appearance = nil
+		case .light:
+			NSApp.appearance = NSAppearance(named: .aqua)
+		case .dark:
+			NSApp.appearance = NSAppearance(named: .darkAqua)
+		}
+	}
 
 	func handleMarkAsRead(userInfo: [AnyHashable: Any]) {
 		handleStatusNotification(userInfo: userInfo, statusKey: .read)
