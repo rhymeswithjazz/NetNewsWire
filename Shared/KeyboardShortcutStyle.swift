@@ -77,16 +77,3 @@ enum KeyboardShortcutProfile {
 		}
 	}
 }
-
-// Preserve the fork preference while using upstream's shared static defaults API.
-extension AppDefaults {
-	static var keyboardShortcutStyle: KeyboardShortcutStyle {
-		get {
-			KeyboardShortcutStyle(rawValue: UserDefaults.standard.integer(forKey: Key.keyboardShortcutStyle)) ?? .standard
-		}
-		set {
-			UserDefaults.standard.set(newValue.rawValue, forKey: Key.keyboardShortcutStyle)
-			NotificationCenter.default.post(name: .keyboardShortcutStyleDidChange, object: nil)
-		}
-	}
-}
