@@ -189,7 +189,7 @@ final class TimelineViewController: NSViewController, UndoableCommandRunner, Unr
 		}
 	}
 	private var estimatedRowHeight: CGFloat = 0.0 // For rows not yet measured
-	private var rowHeights = [String: TimelineRowHeight]() // articleID: height measured at rowHeightWidth
+	private var rowHeights = [ArticleIdentityKey: TimelineRowHeight]() // Height measured at rowHeightWidth
 	private var rowHeightWidth: CGFloat = 0.0 // The width of a standard-layout cell
 	private var rowHeightMeasuringStartRow: Int? // Where the next measuring pass starts
 	private var isRowHeightMeasuringScheduled = false
@@ -272,9 +272,15 @@ final class TimelineViewController: NSViewController, UndoableCommandRunner, Unr
 	}
 	private static let readArticleAlphaValue: CGFloat = 0.6
 
-	private struct ArticleIdentityKey: Equatable {
+	/// Two accounts can have articles with the same articleID — the same feed in On My Mac and iCloud, for instance.
+	private struct ArticleIdentityKey: Hashable {
 		let accountID: String
 		let articleID: String
+
+		init(_ article: Article) {
+			self.accountID = article.accountID
+			self.articleID = article.articleID
+		}
 	}
 
 	/// A changed article is a new instance, so `article` tells whether the height is still current.
@@ -492,7 +498,18 @@ final class TimelineViewController: NSViewController, UndoableCommandRunner, Unr
 	// MARK: - Actions
 
 	@objc func openArticleInBrowser(_ sender: Any?) {
-		if let link = oneSelectedArticle?.preferredLink {
+		let article: Article?
+
+		if let tableView = sender as? NSTableView, tableView === self.tableView, let clickedArticle = articles.articleAtRow(tableView.clickedRow) {
+			article = clickedArticle
+			if !clickedArticle.status.read {
+				markArticles(Set([clickedArticle]), statusKey: .read, flag: true)
+			}
+		} else {
+			article = oneSelectedArticle
+		}
+
+		if let link = article?.preferredLink {
 			Browser.open(link, invertPreference: NSApp.currentEvent?.modifierFlags.contains(.shift) ?? false)
 		}
 	}
@@ -806,7 +823,7 @@ final class TimelineViewController: NSViewController, UndoableCommandRunner, Unr
 		}
 		// The row already has room for the thumbnail, so only the image changes.
 		tableView.enumerateAvailableRowViews { rowView, row in
-			guard let article = articles.articleAtRow(row), ArticleThumbnailFinder.shared.thumbnailURL(for: article, mode: thumbnailMode) == url, let cell = cellForRowView(rowView) as? TimelineTableCellView, let thumbnail = ThumbnailDownloader.shared.thumbnail(url: url, mode: thumbnailMode, articleTitle: article.title) else {
+			guard let article = articles.articleAtRow(row), ArticleThumbnailFinder.shared.thumbnailURL(for: article, mode: thumbnailMode) == url, let cell = cellForRowView(rowView) as? TimelineTableCellView, let thumbnail = ThumbnailDownloader.shared.thumbnail(url: url, mode: thumbnailMode, feedName: article.feed?.nameForDisplay, articleTitle: article.title) else {
 				return
 			}
 			cell.thumbnail = thumbnail
@@ -828,7 +845,7 @@ final class TimelineViewController: NSViewController, UndoableCommandRunner, Unr
 		// After ArticleThumbnailFinder forgets its choices, which it does on this notification too.
 		Task { @MainActor in
 			remeasureRowsWhoseThumbnailChanged()
-			// Thumbnails that couldn’t download while offline or in Low Data Mode try again.
+			// Thumbnails that couldn’t download while offline try again.
 			if ThumbnailDownloader.shared.networkAllowsDownloads {
 				reloadVisibleCells()
 			}
@@ -1010,7 +1027,7 @@ final class TimelineViewController: NSViewController, UndoableCommandRunner, Unr
 
 	/// Nil when the row hasn’t been measured, or its article changed since.
 	private func measuredRowHeight(for article: Article) -> CGFloat? {
-		guard let rowHeight = rowHeights[article.articleID], rowHeight.article === article else {
+		guard let rowHeight = rowHeights[ArticleIdentityKey(article)], rowHeight.article === article else {
 			return nil
 		}
 		return rowHeight.height
@@ -1021,7 +1038,7 @@ final class TimelineViewController: NSViewController, UndoableCommandRunner, Unr
 		let cellData = TimelineCellData(article: article, showFeedName: showFeedNames, feedName: article.feed?.nameForDisplay, byline: article.byline(), iconImage: nil, showIcon: showIcons, thumbnail: nil, showThumbnail: showThumbnail)
 		let appearance: TimelineCellAppearance = showIcons ? cellAppearanceWithIcon : cellAppearance
 		let height = TimelineCellLayout.height(for: rowHeightWidth, cellData: cellData, appearance: appearance)
-		rowHeights[article.articleID] = TimelineRowHeight(article: article, showsThumbnail: showThumbnail, height: height)
+		rowHeights[ArticleIdentityKey(article)] = TimelineRowHeight(article: article, showsThumbnail: showThumbnail, height: height)
 	}
 
 	private func articleShowsThumbnail(_ article: Article) -> Bool {
@@ -1041,7 +1058,7 @@ final class TimelineViewController: NSViewController, UndoableCommandRunner, Unr
 			guard let article = articles.articleAtRow(row) else {
 				continue
 			}
-			rowHeights[article.articleID] = nil
+			rowHeights[ArticleIdentityKey(article)] = nil
 			if measuresNow {
 				measureRowHeight(for: article)
 			}
@@ -1062,7 +1079,7 @@ final class TimelineViewController: NSViewController, UndoableCommandRunner, Unr
 	private func remeasureRowsWhoseThumbnailChanged() {
 		var rows = IndexSet()
 		for (row, article) in articles.enumerated() {
-			if let rowHeight = rowHeights[article.articleID], rowHeight.showsThumbnail != articleShowsThumbnail(article) {
+			if let rowHeight = rowHeights[ArticleIdentityKey(article)], rowHeight.showsThumbnail != articleShowsThumbnail(article) {
 				rows.insert(row)
 			}
 		}
@@ -1070,8 +1087,8 @@ final class TimelineViewController: NSViewController, UndoableCommandRunner, Unr
 	}
 
 	private func removeRowHeightsForMissingArticles() {
-		let articleIDs = Set(articles.articleIDs())
-		rowHeights = rowHeights.filter { articleIDs.contains($0.key) }
+		let articleKeys = Set(articles.map { ArticleIdentityKey($0) })
+		rowHeights = rowHeights.filter { articleKeys.contains($0.key) }
 	}
 
 	/// A width change makes every height stale. Rows near the visible ones are measured during layout, the rest in passes.
@@ -1378,7 +1395,7 @@ extension TimelineViewController: NSTableViewDelegate {
 		// Compare by identity, not content — re-pushing an updated article that the user is reading
 		// would reset the article view scroll position.
 		// <https://github.com/Ranchero-Software/NetNewsWire/issues/5387>
-		let selectedArticleKeys = selectedArticles?.map { ArticleIdentityKey(accountID: $0.accountID, articleID: $0.articleID) }
+		let selectedArticleKeys = selectedArticles?.map { ArticleIdentityKey($0) }
 		guard selectedArticleKeys != previouslySelectedArticleKeys else {
 			return
 		}
@@ -1394,7 +1411,7 @@ extension TimelineViewController: NSTableViewDelegate {
 		var showThumbnail = false
 		if let thumbnailMode, let thumbnailURL = ArticleThumbnailFinder.shared.thumbnailURL(for: article, mode: thumbnailMode) {
 			showThumbnail = true
-			thumbnail = ThumbnailDownloader.shared.thumbnail(url: thumbnailURL, mode: thumbnailMode, articleTitle: article.title)
+			thumbnail = ThumbnailDownloader.shared.thumbnail(url: thumbnailURL, mode: thumbnailMode, feedName: article.feed?.nameForDisplay, articleTitle: article.title)
 		}
 		cell.cellData = TimelineCellData(article: article, showFeedName: showFeedNames, feedName: article.feed?.nameForDisplay, byline: article.byline(), iconImage: iconImage, showIcon: showIcons, thumbnail: thumbnail, showThumbnail: showThumbnail)
 	}

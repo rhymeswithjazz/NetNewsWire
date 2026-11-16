@@ -26,6 +26,8 @@ final class MainTimelineViewController: UIViewController, UndoableCommandRunner 
 	private var feedNameAndDateAboveTitle = false
 	private var showsFullTitles = false
 	private var articleIDsToReload = Set<String>()
+	/// The article whose row was just swiped to change its status.
+	private var swipedArticleID: String?
 	private lazy var feedTapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(showFeedInspector(_:)))
 	private lazy var filterButton = UIBarButtonItem(image: Assets.Images.filter, style: .plain, target: self, action: #selector(toggleFilter(_:)))
 	private lazy var nextUnreadButton = UIBarButtonItem(image: Assets.Images.nextUnread, style: .plain, target: self, action: #selector(nextUnread(_:)))
@@ -595,7 +597,7 @@ extension MainTimelineViewController: UICollectionViewDelegate {
 			reloadCells([article])
 			return
 		}
-		guard let thumbnailURL, let thumbnail = ThumbnailDownloader.shared.thumbnail(url: thumbnailURL, mode: thumbnailMode, articleTitle: article.title), thumbnail !== cell.thumbnail else {
+		guard let thumbnailURL, let thumbnail = ThumbnailDownloader.shared.thumbnail(url: thumbnailURL, mode: thumbnailMode, feedName: article.feed?.nameForDisplay, articleTitle: article.title), thumbnail !== cell.thumbnail else {
 			return
 		}
 		cell.thumbnail = thumbnail
@@ -843,14 +845,8 @@ private extension MainTimelineViewController {
 					NSLocalizedString("Starred", comment: "Starred")
 				UIAccessibility.post(notification: .announcement, argument: announcement)
 
-				/// The call to `toggleStar` is delayed in order to allow
-				/// the swipe animation to complete. Calling `toggleStar` with no
-				/// delay results UICollectionView internal inconsistency: unexpected
-				/// removal of the current swipe occurrence’s mask view error.
-				DispatchQueue.main.asyncAfter(deadline: .now() + 0.85) {
-					self?.toggleStar(article)
-				}
-
+				self?.swipedArticleID = article.articleID
+				self?.toggleStar(article)
 				completion(true)
 			}
 
@@ -937,13 +933,8 @@ private extension MainTimelineViewController {
 					NSLocalizedString("Marked as Read", comment: "Accessibility announcement")
 				UIAccessibility.post(notification: .announcement, argument: announcement)
 
-				/// The call to `toggleRead` is delayed in order to allow
-				/// the swipe animation to complete. Calling `toggleRead` with no
-				/// delay results UICollectionView internal inconsistency: unexpected
-				/// removal of the current swipe occurrence’s mask view error.
-				DispatchQueue.main.asyncAfter(wallDeadline: .now() + 0.85) {
-					self?.toggleRead(article)
-				}
+				self?.swipedArticleID = article.articleID
+				self?.toggleRead(article)
 				completion(true)
 			}
 
@@ -1008,7 +999,7 @@ private extension MainTimelineViewController {
 		var showThumbnail = false
 		if let thumbnailMode, let thumbnailURL = ArticleThumbnailFinder.shared.thumbnailURL(for: article, mode: thumbnailMode) {
 			showThumbnail = true
-			thumbnail = ThumbnailDownloader.shared.thumbnail(url: thumbnailURL, mode: thumbnailMode, articleTitle: article.title)
+			thumbnail = ThumbnailDownloader.shared.thumbnail(url: thumbnailURL, mode: thumbnailMode, feedName: article.feed?.nameForDisplay, articleTitle: article.title)
 		}
 		let cellData = MainTimelineCellData(article: article, showFeedName: showFeedNames, feedName: article.feed?.nameForDisplay, byline: article.byline(), iconImage: iconImage, showIcon: showIcon, numberOfLines: numberOfTextLines, iconSize: iconSize, thumbnail: thumbnail, showThumbnail: showThumbnail, thumbnailsDisplay: thumbnailsDisplay, fadesReadArticles: fadesReadArticles, feedNameAndDateAboveTitle: feedNameAndDateAboveTitle, showsFullTitles: showsFullTitles)
 		return cellData
@@ -1161,8 +1152,20 @@ private extension MainTimelineViewController {
 			return
 		}
 
-		let visibleArticles = indexPaths.compactMap { dataSource.itemIdentifier(for: $0) }
-		let visibleUpdatedArticles = visibleArticles.filter { articleIDs.contains($0.articleID) }
+		var visibleUpdatedArticles = indexPaths.compactMap { dataSource.itemIdentifier(for: $0) }.filter { articleIDs.contains($0.articleID) }
+
+		// The swiped row is updated in place, since a snapshot reload during the swipe animation triggers a UICollectionView
+		// “unexpected removal of the current swipe occurrence’s mask view” error. A status change doesn’t change a row’s height.
+		if let swipedArticleID, articleIDs.contains(swipedArticleID) {
+			self.swipedArticleID = nil
+			if let index = visibleUpdatedArticles.firstIndex(where: { $0.articleID == swipedArticleID }) {
+				let swipedArticle = visibleUpdatedArticles.remove(at: index)
+				if let indexPath = dataSource.indexPath(for: swipedArticle), let cell = collectionView.cellForItem(at: indexPath) as? MainTimelineCell {
+					cell.cellData = configure(article: swipedArticle)
+				}
+			}
+		}
+
 		reloadCells(visibleUpdatedArticles)
 	}
 
@@ -1241,7 +1244,7 @@ private extension MainTimelineViewController {
 		}
 		// The row’s height already allows for the thumbnail, so only the cell’s contents change.
 		for indexPath in collectionView.indexPathsForVisibleItems {
-			guard let article = dataSource.itemIdentifier(for: indexPath), ArticleThumbnailFinder.shared.thumbnailURL(for: article, mode: thumbnailMode) == url, let cell = collectionView.cellForItem(at: indexPath) as? MainTimelineCell, let thumbnail = ThumbnailDownloader.shared.thumbnail(url: url, mode: thumbnailMode, articleTitle: article.title) else {
+			guard let article = dataSource.itemIdentifier(for: indexPath), ArticleThumbnailFinder.shared.thumbnailURL(for: article, mode: thumbnailMode) == url, let cell = collectionView.cellForItem(at: indexPath) as? MainTimelineCell, let thumbnail = ThumbnailDownloader.shared.thumbnail(url: url, mode: thumbnailMode, feedName: article.feed?.nameForDisplay, articleTitle: article.title) else {
 				continue
 			}
 			cell.thumbnail = thumbnail
@@ -1260,7 +1263,7 @@ private extension MainTimelineViewController {
 		guard thumbnailMode != nil, ThumbnailDownloader.shared.networkAllowsDownloads else {
 			return
 		}
-		// Thumbnails that couldn’t download while offline or in Low Data Mode try again.
+		// Thumbnails that couldn’t download while offline try again.
 		reloadVisibleCells()
 	}
 

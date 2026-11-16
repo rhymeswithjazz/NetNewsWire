@@ -232,7 +232,6 @@ let appName = "NetNewsWire"
 
 		ArticleThemesManager.shared.start()
 		NetworkMonitor.shared.start()
-		MemoryPressureMonitor.shared.start()
 
 #if !SKIP_APP_GROUP_ACCESS
 		ExtensionContainersFile.shared.start()
@@ -717,6 +716,10 @@ let appName = "NetNewsWire"
 
 	@IBAction func openDiscourse(_ sender: Any?) {
 		HelpURL.discourse.open()
+	}
+
+	@IBAction func openThemesGallery(_ sender: Any?) {
+		HelpURL.themesGallery.open()
 	}
 
 	@IBAction func showHelp(_ sender: Any?) {
