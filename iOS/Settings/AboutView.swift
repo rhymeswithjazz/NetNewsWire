@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import RSCore
 
 struct AboutView: View {
     var body: some View {
@@ -20,8 +21,11 @@ struct AboutView: View {
 				Text(verbatim: "NetNewsWire")
 					.font(.largeTitle)
 
-				Text(verbatim: "By Brent Simmons and the Ranchero Software team")
+				Text(verbatim: "\(Bundle.main.appName) \(Bundle.main.versionNumber) (build \(Bundle.main.buildNumber))")
 					.foregroundStyle(.secondary)
+					.textSelection(.enabled)
+
+				Text(verbatim: "By Brent Simmons and the NetNewsWire team")
 				Text("[netnewswire.com](https://netnewswire.com/)")
 
 				VStack(spacing: 6) {
@@ -64,7 +68,7 @@ struct AboutView: View {
 		}
 		.multilineTextAlignment(.center)
 		.background(Color(uiColor: .systemBackground))
-		.navigationTitle(Text(verbatim: "About NetNewsWire"))
+		.navigationBarTitleDisplayMode(.inline)
     }
 }
 

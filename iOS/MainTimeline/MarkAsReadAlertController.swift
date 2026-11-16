@@ -28,7 +28,7 @@ extension UIBarButtonItem: MarkAsReadAlertControllerSourceType {}
 			return
 		}
 
-		if AppDefaults.shared.confirmMarkAllAsRead {
+		if AppDefaults.confirmMarkAllAsRead {
 			let alertController = MarkAsReadAlertController.alert(coordinator: coordinator, confirmTitle: confirmTitle, cancelCompletion: cancelCompletion, sourceType: sourceType) { _ in
 				completion()
 			}
@@ -56,7 +56,7 @@ extension UIBarButtonItem: MarkAsReadAlertControllerSourceType {}
 		}
 		let settingsAction = UIAlertAction(title: settingsTitle, style: .default) { _ in
 			Task { @MainActor in
-				coordinator.showSettings(scrollToArticlesSection: true)
+				coordinator.showSettings(showTimelineSettings: true)
 			}
 		}
 		let markAction = UIAlertAction(title: confirmTitle, style: .default, handler: completion)

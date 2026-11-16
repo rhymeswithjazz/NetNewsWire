@@ -612,6 +612,26 @@ import RSParser
 		#expect(summary.contains("<p>Hello <em>world</em>.</p>"))
 	}
 
+	@Test func xhtmlTitleWithCDATA() throws {
+		// <https://github.com/Ranchero-Software/NetNewsWire/issues/5484>
+		let xml = """
+		<?xml version="1.0" encoding="utf-8"?>
+		<feed xmlns="http://www.w3.org/2005/Atom">
+		  <title>t</title><id>urn:t</id>
+		  <entry>
+		    <id>urn:t:1</id>
+		    <title type="xhtml"><![CDATA[Wheels within (mouse) wheels]]></title>
+		    <updated>2020-05-01T00:00:00Z</updated>
+		    <content>Body.</content>
+		  </entry>
+		</feed>
+		"""
+		let d = ParserData(url: "http://example.com/", data: Data(xml.utf8))
+		let feed = try #require(try FeedParser.parse(d))
+		let item = try #require(feed.items.first)
+		#expect(item.title == "Wheels within (mouse) wheels")
+	}
+
 	@Test func contentTypeDefault() throws {
 		// No `type` attribute — RFC 4287 specifies default is "text". The
 		// parser treats it as plain text (same path as `type="text"`).
@@ -649,5 +669,27 @@ import RSParser
 		#expect(!parsedFeed.items.contains { $0.title == "Default Title" })
 		let item = try #require(parsedFeed.items.first { $0.uniqueID == "https://draw-down.com/products/9225111929086" })
 		#expect(item.title == "Revue Faire — no. 56 (Reading Until I Sleep: Manuel Raeder)")
+	}
+
+	@Test func youTubeMediaGroup() throws {
+		let d = parserData("youtube", "atom", "https://www.youtube.com/feeds/videos.xml?channel_id=UCexamplechannel000000")
+		let parsedFeed = try #require(try FeedParser.parse(d))
+		let item = try #require(parsedFeed.items.first)
+
+		#expect(item.title == "Real Video Title")
+		#expect(item.url == "https://www.youtube.com/watch?v=abcdefghijk")
+		#expect(item.thumbnailURL == "https://i1.ytimg.com/vi/abcdefghijk/hqdefault.jpg")
+
+		// No content or summary, so the plain-text media:description is the body.
+		#expect(item.contentHTML == nil)
+		#expect(item.contentText == "The video’s description.")
+
+		let attachments = try #require(item.attachments)
+		#expect(attachments.count == 1)
+		let attachment = try #require(attachments.first)
+		#expect(attachment.url == "https://www.youtube.com/v/abcdefghijk?version=3")
+		#expect(attachment.mimeType == "application/x-shockwave-flash")
+		#expect(attachment.width == 640)
+		#expect(attachment.height == 390)
 	}
 }

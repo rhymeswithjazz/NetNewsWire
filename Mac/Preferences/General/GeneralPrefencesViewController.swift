@@ -13,9 +13,6 @@ import UserNotifications
 import UniformTypeIdentifiers
 
 final class GeneralPreferencesViewController: NSViewController {
-	@IBOutlet var articleTextSizeLabel: NSTextField!
-	@IBOutlet var articleTextSizePopup: NSPopUpButton!
-	@IBOutlet var articleThemePopup: NSPopUpButton!
 	@IBOutlet var defaultBrowserPopup: NSPopUpButton!
 	@IBOutlet var showUnreadCountsButton: NSButton?
 	@IBOutlet var showUnreadCountDotButton: NSButton?
@@ -39,7 +36,6 @@ final class GeneralPreferencesViewController: NSViewController {
 
 	override func viewDidLoad() {
 		super.viewDidLoad()
-		fixArticleTextSizeBaselineIfNeeded()
 		addKeyboardShortcutStyleControls()
 		view.sizeToFittingSize()
 	}
@@ -56,34 +52,17 @@ final class GeneralPreferencesViewController: NSViewController {
 		updateUI()
 	}
 
-	@objc func articleThemeNamesDidChangeNotification(_ note: Notification) {
-		updateArticleThemePopup()
-	}
-
 	@objc func handleUnreadCountDisplaySettingDidChange(_ notification: Notification) {
 		updateUnreadCountDisplayButtons()
 	}
 
 	// MARK: - Actions
 
-	@IBAction func showThemesFolder(_ sender: Any) {
-		let url = URL(fileURLWithPath: ArticleThemesManager.shared.folderPath)
-		NSWorkspace.shared.open(url)
-	}
-
-	@IBAction func articleThemePopUpDidChange(_ sender: Any) {
-		guard let menuItem = articleThemePopup.selectedItem else {
-			return
-		}
-		ArticleThemesManager.shared.currentThemeName = menuItem.title
-		updateArticleThemePopup()
-	}
-
 	@IBAction func unreadCountDisplaySettingDidChange(_ sender: NSButton) {
 		guard let unreadCountDisplay = UnreadCountDisplay(rawValue: sender.tag) else {
 			return
 		}
-		AppDefaults.shared.unreadCountDisplay = unreadCountDisplay
+		AppDefaults.unreadCountDisplay = unreadCountDisplay
 	}
 
 	@IBAction func browserPopUpDidChangeValue(_ sender: Any?) {
@@ -92,13 +71,13 @@ final class GeneralPreferencesViewController: NSViewController {
 		}
 
 		let bundleID = menuItem.representedObject as? String
-		AppDefaults.shared.defaultBrowserID = bundleID
+		AppDefaults.defaultBrowserID = bundleID
 		updateBrowserPopup()
 	}
 
 	@objc func keyboardShortcutStyleDidChange(_ sender: NSPopUpButton) {
 		guard let style = KeyboardShortcutStyle(rawValue: sender.selectedTag()) else { return }
-		AppDefaults.shared.keyboardShortcutStyle = style
+		AppDefaults.keyboardShortcutStyle = style
 	}
 
 }
@@ -107,52 +86,19 @@ final class GeneralPreferencesViewController: NSViewController {
 
 private extension GeneralPreferencesViewController {
 
-	/// On macOS 15 the "Article Text Size:" label is vertically misaligned
-	/// with its popup. Replace the firstBaseline constraint with a
-	/// centerY constraint, which works.
-	func fixArticleTextSizeBaselineIfNeeded() {
-		if #available(macOS 26, *) {
-			return
-		}
-
-		guard let superview = articleTextSizeLabel.superview else {
-			return
-		}
-
-		for constraint in superview.constraints {
-			let matchesBaseline =
-				constraint.firstAttribute == .firstBaseline &&
-				constraint.secondAttribute == .firstBaseline
-			let involvesPopup =
-				constraint.firstItem === articleTextSizePopup ||
-				constraint.secondItem === articleTextSizePopup
-			let involvesLabel =
-				constraint.firstItem === articleTextSizeLabel ||
-				constraint.secondItem === articleTextSizeLabel
-
-			if matchesBaseline && involvesPopup && involvesLabel {
-				superview.removeConstraint(constraint)
-				articleTextSizeLabel.centerYAnchor.constraint(equalTo: articleTextSizePopup.centerYAnchor).isActive = true
-				break
-			}
-		}
-	}
-
 	func commonInit() {
 		NotificationCenter.default.addObserver(self, selector: #selector(applicationWillBecomeActive(_:)), name: NSApplication.willBecomeActiveNotification, object: nil)
-		NotificationCenter.default.addObserver(self, selector: #selector(articleThemeNamesDidChangeNotification(_:)), name: .ArticleThemeNamesDidChangeNotification, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(handleUnreadCountDisplaySettingDidChange(_:)), name: .unreadCountDisplaySettingDidChange, object: nil)
 	}
 
 	func updateUI() {
-		updateArticleThemePopup()
 		updateBrowserPopup()
-		keyboardShortcutStylePopup.selectItem(withTag: AppDefaults.shared.keyboardShortcutStyle.rawValue)
+		keyboardShortcutStylePopup.selectItem(withTag: AppDefaults.keyboardShortcutStyle.rawValue)
 		updateUnreadCountDisplayButtons()
 	}
 
 	func addKeyboardShortcutStyleControls() {
-		guard let container = articleTextSizeLabel.superview,
+		guard let container = defaultBrowserPopup.superview,
 			  let refreshPopup = container.subviews.compactMap({ $0 as? NSPopUpButton }).min(by: { $0.frame.minY < $1.frame.minY }) else { return }
 
 		let label = NSTextField(labelWithString: NSLocalizedString("Keyboard Shortcuts:", comment: "Preference label"))
@@ -170,11 +116,11 @@ private extension GeneralPreferencesViewController {
 
 		container.constraints.filter { $0.firstAttribute == .bottom && $0.secondItem === refreshPopup }.forEach { $0.isActive = false }
 		NSLayoutConstraint.activate([
-			label.leadingAnchor.constraint(equalTo: articleTextSizeLabel.leadingAnchor),
-			label.trailingAnchor.constraint(equalTo: articleTextSizeLabel.trailingAnchor),
+			label.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+			label.trailingAnchor.constraint(equalTo: defaultBrowserPopup.leadingAnchor, constant: -12),
 			label.firstBaselineAnchor.constraint(equalTo: keyboardShortcutStylePopup.firstBaselineAnchor),
-			keyboardShortcutStylePopup.leadingAnchor.constraint(equalTo: articleTextSizePopup.leadingAnchor),
-			keyboardShortcutStylePopup.trailingAnchor.constraint(equalTo: articleTextSizePopup.trailingAnchor),
+			keyboardShortcutStylePopup.leadingAnchor.constraint(equalTo: defaultBrowserPopup.leadingAnchor),
+			keyboardShortcutStylePopup.trailingAnchor.constraint(equalTo: defaultBrowserPopup.trailingAnchor),
 			keyboardShortcutStylePopup.topAnchor.constraint(equalTo: refreshPopup.bottomAnchor, constant: 12),
 			container.bottomAnchor.constraint(equalTo: keyboardShortcutStylePopup.bottomAnchor, constant: 4)
 		])
@@ -182,26 +128,9 @@ private extension GeneralPreferencesViewController {
 	}
 
 	func updateUnreadCountDisplayButtons() {
-		let selectedTag = AppDefaults.shared.unreadCountDisplay.rawValue
+		let selectedTag = AppDefaults.unreadCountDisplay.rawValue
 		for case let button? in [showUnreadCountsButton, showUnreadCountDotButton, hideUnreadCountsButton] {
 			button.state = button.tag == selectedTag ? .on : .off
-		}
-	}
-
-	func updateArticleThemePopup() {
-		let menu = articleThemePopup.menu!
-		menu.removeAllItems()
-
-		menu.addItem(NSMenuItem(title: ArticleTheme.defaultTheme.name, action: nil, keyEquivalent: ""))
-		menu.addItem(NSMenuItem.separator())
-
-		for themeName in ArticleThemesManager.shared.themeNames {
-			menu.addItem(NSMenuItem(title: themeName, action: nil, keyEquivalent: ""))
-		}
-
-		articleThemePopup.selectItem(withTitle: ArticleThemesManager.shared.currentThemeName)
-		if articleThemePopup.indexOfSelectedItem == -1 {
-			articleThemePopup.selectItem(withTitle: ArticleTheme.defaultTheme.name)
 		}
 	}
 
@@ -260,7 +189,7 @@ private extension GeneralPreferencesViewController {
 			menu.addItem(item)
 		}
 
-		defaultBrowserPopup.selectItem(at: defaultBrowserPopup.indexOfItem(withRepresentedObject: AppDefaults.shared.defaultBrowserID))
+		defaultBrowserPopup.selectItem(at: defaultBrowserPopup.indexOfItem(withRepresentedObject: AppDefaults.defaultBrowserID))
 	}
 
 	func updateNotificationSettings() {
@@ -275,10 +204,10 @@ private extension GeneralPreferencesViewController {
 
 	@objc var openFeedsInDefaultNewsReader: Bool {
 		get {
-			return AppDefaults.shared.subscribeToFeedsInDefaultBrowser
+			return AppDefaults.subscribeToFeedsInDefaultBrowser
 		}
 		set {
-			AppDefaults.shared.subscribeToFeedsInDefaultBrowser = newValue
+			AppDefaults.subscribeToFeedsInDefaultBrowser = newValue
 		}
 	}
 }

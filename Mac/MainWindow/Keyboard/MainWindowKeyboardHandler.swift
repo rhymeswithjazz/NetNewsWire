@@ -13,7 +13,7 @@ import RSCore
 	static let shared = MainWindowKeyboardHandler()
 	private let shortcutSets = KeyboardShortcutSets(resourceName: "GlobalKeyboardShortcuts", context: .global)
 	private var globalShortcuts: Set<KeyboardShortcut> {
-		shortcutSets.shortcuts(for: AppDefaults.shared.keyboardShortcutStyle)
+		shortcutSets.shortcuts(for: AppDefaults.keyboardShortcutStyle)
 	}
 
 	func keydown(_ event: NSEvent, in view: NSView) -> Bool {
